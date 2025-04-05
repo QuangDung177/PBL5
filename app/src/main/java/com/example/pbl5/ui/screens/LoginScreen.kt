@@ -23,13 +23,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pbl5.R
+import com.example.pbl5.utils.FirebaseManager
+import com.example.pbl5.utils.OtpHandler
+import com.example.pbl5.utils.Utils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthProvider
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 @Composable
 fun LoginScreen(
@@ -39,52 +38,28 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
-    val firestore = FirebaseFirestore.getInstance()
     val coroutineScope = rememberCoroutineScope()
 
     // Quản lý trạng thái
     val phoneNumber = remember { mutableStateOf("") }
     val otp = remember { mutableStateOf("") }
-    val verificationId = remember { mutableStateOf<String?>(null) }
-    val isOtpSent = remember { mutableStateOf(false) }
-    val errorMessage = remember { mutableStateOf<String?>(null) }
-    val resendCooldown = remember { mutableStateOf(30) }
-    val isResendEnabled = remember { mutableStateOf(true) }
-    val isLoading = remember { mutableStateOf(false) } // Trạng thái loading
-
-    // Callback để xử lý gửi OTP
-    val callbacks = remember {
-        object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                isLoading.value = false
-                signInWithPhoneAuthCredential(credential, auth, context, onLoginSuccess)
-            }
-
-            override fun onVerificationFailed(exception: com.google.firebase.FirebaseException) {
-                isLoading.value = false
-                errorMessage.value = "Gửi OTP thất bại: ${exception.message}"
-            }
-
-            override fun onCodeSent(verId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                isLoading.value = false
-                verificationId.value = verId
-                isOtpSent.value = true
-                errorMessage.value = null
-                Toast.makeText(context, "OTP đã được gửi!", Toast.LENGTH_SHORT).show()
-
-                // Bắt đầu đếm ngược để gửi lại OTP
-                coroutineScope.launch {
-                    isResendEnabled.value = false
-                    resendCooldown.value = 30
-                    while (resendCooldown.value > 0) {
-                        delay(1000L)
-                        resendCooldown.value -= 1
-                    }
-                    isResendEnabled.value = true
-                }
+    val firebaseManager = remember { FirebaseManager() }
+    // Khởi tạo OtpHandler và FirebaseManager
+    val otpHandler = remember {
+        OtpHandler(auth, activity, coroutineScope).apply {
+            setOnVerificationCompletedCallback { credential ->
+                firebaseManager.verifyOtp(
+                    credential = credential,
+                    onSuccess = {
+                        Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                        onLoginSuccess()
+                    },
+                    onFailure = { error -> errorMessage.value = error }
+                )
             }
         }
     }
+
 
     Box(
         modifier = Modifier
@@ -112,7 +87,7 @@ fun LoginScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 10.dp)
             )
-            if (!isOtpSent.value) {
+            if (!otpHandler.isOtpSent.value) {
                 Text(
                     text = "Vui lòng nhập số điện thoại để nhận OTP.",
                     fontSize = 16.sp,
@@ -132,7 +107,7 @@ fun LoginScreen(
                         .padding(bottom = 20.dp),
                     shape = RoundedCornerShape(8.dp)
                 )
-                errorMessage.value?.let { message ->
+                otpHandler.errorMessage.value?.let { message ->
                     Text(
                         text = message,
                         color = Color.Red,
@@ -148,7 +123,7 @@ fun LoginScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (isLoading.value) {
+                    if (otpHandler.isLoading.value) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(30.dp),
                             color = Color(0xFF1E90FF)
@@ -157,31 +132,18 @@ fun LoginScreen(
                         Button(
                             onClick = {
                                 if (phoneNumber.value.isNotEmpty()) {
-                                    if (isValidPhoneNumber(phoneNumber.value)) {
-                                        firestore.collection("USERS").document(phoneNumber.value).get()
-                                            .addOnSuccessListener { document ->
-                                                if (document.exists()) {
-                                                    isLoading.value = true
-                                                    val fullPhoneNumber = "+84${phoneNumber.value.trimStart('0')}"
-                                                    PhoneAuthProvider.getInstance().verifyPhoneNumber(
-                                                        fullPhoneNumber,
-                                                        60,
-                                                        TimeUnit.SECONDS,
-                                                        activity,
-                                                        callbacks
-                                                    )
-                                                } else {
-                                                    errorMessage.value = "Số điện thoại chưa được đăng ký!"
-                                                }
-                                            }
-                                            .addOnFailureListener { e ->
-                                                errorMessage.value = "Lỗi kiểm tra số điện thoại: ${e.message}"
-                                            }
+                                    if (Utils.isValidPhoneNumber(phoneNumber.value)) {
+                                        firebaseManager.checkPhoneNumberForLogin(
+                                            phoneNumber = phoneNumber.value,
+                                            onSuccess = { otpHandler.sendOtp(phoneNumber.value) },
+                                            onNotFound = { otpHandler.errorMessage.value = "Số điện thoại chưa được đăng ký!" },
+                                            onFailure = { error -> otpHandler.errorMessage.value = error }
+                                        )
                                     } else {
-                                        errorMessage.value = "Số điện thoại phải có 10 chữ số!"
+                                        otpHandler.errorMessage.value = "Số điện thoại phải có 10 chữ số!"
                                     }
                                 } else {
-                                    errorMessage.value = "Vui lòng nhập số điện thoại"
+                                    otpHandler.errorMessage.value = "Vui lòng nhập số điện thoại"
                                 }
                             },
                             modifier = Modifier
@@ -214,7 +176,7 @@ fun LoginScreen(
                         .padding(bottom = 20.dp),
                     shape = RoundedCornerShape(8.dp)
                 )
-                errorMessage.value?.let { message ->
+                otpHandler.errorMessage.value?.let { message ->
                     Text(
                         text = message,
                         color = Color.Red,
@@ -224,11 +186,18 @@ fun LoginScreen(
                 }
                 Button(
                     onClick = {
-                        if (otp.value.isNotEmpty() && verificationId.value != null) {
-                            val credential = PhoneAuthProvider.getCredential(verificationId.value!!, otp.value)
-                            signInWithPhoneAuthCredential(credential, auth, context, onLoginSuccess)
+                        if (otp.value.isNotEmpty() && otpHandler.verificationId.value != null) {
+                            val credential = PhoneAuthProvider.getCredential(otpHandler.verificationId.value!!, otp.value)
+                            firebaseManager.verifyOtp(
+                                credential = credential,
+                                onSuccess = {
+                                    Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                                    onLoginSuccess()
+                                },
+                                onFailure = { error -> otpHandler.errorMessage.value = error }
+                            )
                         } else {
-                            errorMessage.value = "Vui lòng nhập OTP"
+                            otpHandler.errorMessage.value = "Vui lòng nhập OTP"
                         }
                     },
                     modifier = Modifier
@@ -240,7 +209,6 @@ fun LoginScreen(
                 ) {
                     Text("Xác nhận OTP", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
-                // Nút gửi lại OTP với CircularProgressIndicator
                 Row(
                     modifier = Modifier
                         .width(200.dp)
@@ -249,36 +217,26 @@ fun LoginScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (isLoading.value) {
+                    if (otpHandler.isLoading.value) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(30.dp),
                             color = Color(0xFF1E90FF)
                         )
                     } else {
                         Button(
-                            onClick = {
-                                isLoading.value = true
-                                val fullPhoneNumber = "+84${phoneNumber.value.trimStart('0')}"
-                                PhoneAuthProvider.getInstance().verifyPhoneNumber(
-                                    fullPhoneNumber,
-                                    60,
-                                    TimeUnit.SECONDS,
-                                    activity,
-                                    callbacks
-                                )
-                            },
-                            enabled = isResendEnabled.value,
+                            onClick = { otpHandler.sendOtp(phoneNumber.value) },
+                            enabled = otpHandler.isResendEnabled.value,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isResendEnabled.value) Color(0xFF1E90FF) else Color.Gray,
+                                containerColor = if (otpHandler.isResendEnabled.value) Color(0xFF1E90FF) else Color.Gray,
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = if (isResendEnabled.value) "Gửi lại OTP" else "Gửi lại sau ${resendCooldown.value}s",
+                                text = if (otpHandler.isResendEnabled.value) "Gửi lại OTP" else "Gửi lại sau ${otpHandler.resendCooldown.value}s",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -303,25 +261,4 @@ fun LoginScreen(
             }
         }
     }
-}
-
-private fun isValidPhoneNumber(phone: String): Boolean {
-    return phone.length == 10 && phone.all { it.isDigit() }
-}
-
-private fun signInWithPhoneAuthCredential(
-    credential: PhoneAuthCredential,
-    auth: FirebaseAuth,
-    context: android.content.Context,
-    onLoginSuccess: () -> Unit
-) {
-    auth.signInWithCredential(credential)
-        .addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
-                onLoginSuccess()
-            } else {
-                Toast.makeText(context, "Xác minh OTP thất bại: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
 }
