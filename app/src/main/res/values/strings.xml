@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">SmartFishTank</string>
+    <string name="home_title">Hồ nuôi cá thông minh</string>
+    <string name="home_subtitle">Với AI và IoT, chúng tôi cung cấp công cụ giám sát và phát hiện cá chết, giúp bạn duy trì một hồ cá khỏe mạnh.</string>
+    <string name="login_button">Đăng nhập</string>
+    <string name="register_button">Đăng ký</string>
+</resources>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "268972708983",
+    "project_id": "pbl5-9328d",
+    "storage_bucket": "pbl5-9328d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:268972708983:android:201c484f755f5b749e6272",
+        "android_client_info": {
+          "package_name": "com.example.pbl5"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5_oXuGd4MVlNIxp0pJDv_gAo2PXGXwIk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
