@@ -23,7 +23,7 @@ fun MonitorScreen(
     Scaffold(
         topBar = {
             AppTopBar(
-                title = "Monitor",
+                title = "Độ đục nước",
                 onNotificationClick = { /* TODO: Mở màn hình thông báo */ }
             )
         },

@@ -199,6 +199,35 @@ class RaspberryPiRepository(
             TurbidityDistribution()
         }
     }
+    // Lấy lịch sử độ đục nước
+    suspend fun getTurbidityHistory(serialId: String): List<TurbidityData> {
+        return try {
+            println("Fetching turbidity history for serialId: $serialId")
+            val snapshot = firestore.collection("TURBIDITY")
+                .whereEqualTo("serial_id", serialId)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val history = snapshot.documents.map { doc ->
+                val value = doc.getDouble("value")?.toFloat() ?: 0f
+                val status = when {
+                    value < 2.0 -> "Tốt"
+                    value <= 3.0 -> "Trung bình"
+                    else -> "Xấu"
+                }
+                TurbidityData(
+                    value = value,
+                    timestamp = doc.getTimestamp("timestamp")?.toDate(),
+                    status = status
+                )
+            }
+            println("Fetched ${history.size} turbidity history records")
+            history
+        } catch (e: Exception) {
+            println("Error fetching TurbidityHistory: ${e.message}")
+            emptyList()
+        }
+    }
 }
 
 sealed class Result<out T> {
