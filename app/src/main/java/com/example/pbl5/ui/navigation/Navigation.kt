@@ -26,13 +26,13 @@ fun AppNavigation(
             MainScreen(viewModel = viewModel, navController = navController)
         }
         composable("Fish") {
-            FishScreen(navController = navController)
+            FishScreen(navController = navController, mainViewModel = viewModel)
         }
         composable("Monitor") {
-            MonitorScreen(navController = navController)
+            MonitorScreen(navController = navController, mainViewModel = viewModel)
         }
         composable("Settings") {
-            SettingsScreen(navController = navController)
+            SettingsScreen(navController = navController, mainViewModel = viewModel)
         }
     }
 }

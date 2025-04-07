@@ -12,10 +12,14 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.pbl5.ui.components.AppTopBar
 import com.example.pbl5.ui.components.BottomNavigationBar
+import com.example.pbl5.ui.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavHostController) {
+fun SettingsScreen(
+    navController: NavHostController,
+    mainViewModel: MainViewModel? = null // Thêm tham số, mặc định là null nếu không dùng
+) {
     Scaffold(
         topBar = {
             AppTopBar(

@@ -34,6 +34,13 @@ data class UserData(
     val displayName: String = "User"
 )
 
+data class DeadFishHistory(
+    val id: String = "",
+    val count: Int = 0,
+    val timestamp: Date? = null,
+    val imageUrl: String? = null
+)
+
 class RaspberryPiRepository(
     val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val firebaseManager: FirebaseManager = FirebaseManager()
@@ -45,7 +52,6 @@ class RaspberryPiRepository(
             if (currentUser == null) {
                 Result.Error("Không có người dùng đăng nhập")
             } else {
-                // Bỏ tiền tố +84 và thêm số 0 vào đầu
                 val rawPhoneNumber = currentUser.phoneNumber?.removePrefix("+84") ?: ""
                 val phoneNumber = if (rawPhoneNumber.isNotEmpty()) "0$rawPhoneNumber" else ""
                 if (phoneNumber.isEmpty()) {
@@ -108,6 +114,31 @@ class RaspberryPiRepository(
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    // Lấy lịch sử cá chết
+    suspend fun getDeadFishHistory(serialId: String): List<DeadFishHistory> {
+        return try {
+            println("Fetching dead fish history for serialId: $serialId")
+            val snapshot = firestore.collection("DEAD_FISH_DETECTIONS")
+                .whereEqualTo("serial_id", serialId)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val history = snapshot.documents.map { doc ->
+                DeadFishHistory(
+                    id = doc.id,
+                    count = doc.getLong("count")?.toInt() ?: 0,
+                    timestamp = doc.getTimestamp("timestamp")?.toDate(),
+                    imageUrl = doc.getString("imageURL")
+                )
+            }
+            println("Fetched ${history.size} dead fish history records")
+            history
+        } catch (e: Exception) {
+            println("Error fetching DeadFishHistory: ${e.message}")
+            emptyList()
         }
     }
 
