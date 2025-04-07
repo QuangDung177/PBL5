@@ -74,7 +74,7 @@ class FirebaseManager(
         onFailure: (String) -> Unit
     ) {
         val userData = hashMapOf(
-            "userName" to userName,
+            "displayName" to userName,
             "creatAt" to System.currentTimeMillis().toString()
         )
         firestore.collection("USERS").document(phoneNumber)
