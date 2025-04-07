@@ -2,12 +2,13 @@ package com.example.pbl5.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.toArgb
 import com.example.pbl5.data.TurbidityHistory
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
@@ -31,6 +32,10 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
         return
     }
 
+    // State để theo dõi vị trí bắt đầu của dữ liệu hiển thị
+    var startIndex by remember { mutableStateOf(maxOf(0, history.size - 3)) }
+    val itemsPerPage = 3 // Hiển thị 3 mục mỗi lần
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -50,10 +55,12 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
             )
 
             val sortedHistory = history.sortedBy { it.timestamp?.time ?: 0L }
-            val minTime = sortedHistory.firstOrNull()?.timestamp?.time ?: 0L
-            val maxTime = sortedHistory.lastOrNull()?.timestamp?.time ?: 0L
+            val displayHistory = sortedHistory.subList(
+                startIndex,
+                minOf(startIndex + itemsPerPage, sortedHistory.size)
+            )
 
-            if (minTime == maxTime) {
+            if (displayHistory.size < 2) {
                 Text(
                     text = "Dữ liệu không đủ để vẽ biểu đồ",
                     color = Color.Gray,
@@ -62,37 +69,35 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
                 return@Column
             }
 
-            // Thêm log để kiểm tra dữ liệu
-            println("TurbidityHistory in TurbidityHistoryChart: $sortedHistory")
-            println("minTime: $minTime, maxTime: $maxTime")
-            println("Values: ${sortedHistory.map { it.value }}")
-
             // Tạo dữ liệu cho biểu đồ
-            val entries = sortedHistory.mapIndexed { index, entry ->
+            val entries = displayHistory.mapIndexed { index, entry ->
                 entryOf(index.toFloat(), entry.value)
             }
 
             val chartEntryModelProducer = ChartEntryModelProducer(entries)
 
-            // Vẽ biểu đồ bằng LineChart của vico
+            // Vẽ biểu đồ
             Chart(
-                chart = lineChart(),
+                chart = lineChart(listOf(
+                    com.patrykandpatrick.vico.core.chart.line.LineChart.LineSpec(
+                        lineColor = Color.Blue.toArgb() // Đổi màu thành xanh dương
+                    )
+                )),
                 chartModelProducer = chartEntryModelProducer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(250.dp), // Tăng chiều cao để có không gian cho nhãn
+                    .height(250.dp),
                 startAxis = rememberStartAxis(
                     valueFormatter = AxisValueFormatter { value, _ ->
                         String.format("%.1f", value)
                     },
-                    tickLength = 0.dp // Tắt tick để giống hình ảnh trước đó
+                    tickLength = 0.dp
                 ),
                 bottomAxis = rememberBottomAxis(
                     valueFormatter = AxisValueFormatter { value, _ ->
                         val index = value.toInt()
-                        if (index in sortedHistory.indices) {
-                            val time = sortedHistory[index].timestamp?.time ?: 0L
-                            // So sánh với ngày hiện tại
+                        if (index in displayHistory.indices) {
+                            val time = displayHistory[index].timestamp?.time ?: 0L
                             val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
                             val entryDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(time))
                             if (currentDate == entryDate) {
@@ -104,10 +109,45 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
                             ""
                         }
                     },
-                    labelRotationDegrees = 45f, // Xoay nhãn 45 độ để tránh chồng lấn
-                    tickLength = 0.dp // Tắt tick để giống hình ảnh trước đó
+                    labelRotationDegrees = 45f,
+                    tickLength = 0.dp
                 )
             )
+
+            // Nút điều hướng
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    onClick = {
+                        if (startIndex > 0) {
+                            startIndex = maxOf(0, startIndex - itemsPerPage)
+                        }
+                    },
+                    enabled = startIndex > 0,
+                    modifier = Modifier.width(120.dp)
+                ) {
+                    Text("Trước")
+                }
+
+                Button(
+                    onClick = {
+                        if (startIndex + itemsPerPage < sortedHistory.size) {
+                            startIndex = minOf(
+                                startIndex + itemsPerPage,
+                                sortedHistory.size - itemsPerPage
+                            )
+                        }
+                    },
+                    enabled = startIndex + itemsPerPage < sortedHistory.size,
+                    modifier = Modifier.width(120.dp)
+                ) {
+                    Text("Tiếp")
+                }
+            }
         }
     }
 }

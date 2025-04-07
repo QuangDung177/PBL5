@@ -122,43 +122,43 @@ fun TurbidityStats(
                 }
             }
 
-            // Cột 3: Trạng thái thiết bị
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Trạng thái thiết bị",
-                        fontSize = 14.sp,
-                        color = Color.Black,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Box(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (deviceStatus == "Active") "Active" else "Error",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (deviceStatus == "Active") Color.Green else Color.Red,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+//            // Cột 3: Trạng thái thiết bị
+//            Column(
+//                modifier = Modifier
+//                    .weight(1f)
+//                    .padding(horizontal = 8.dp),
+//                horizontalAlignment = Alignment.CenterHorizontally
+//            ) {
+//                Box(
+//                    modifier = Modifier
+//                        .height(40.dp)
+//                        .fillMaxWidth(),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text(
+//                        text = "Trạng thái thiết bị",
+//                        fontSize = 14.sp,
+//                        color = Color.Black,
+//                        textAlign = TextAlign.Center,
+//                        maxLines = 2
+//                    )
+//                }
+//                Spacer(modifier = Modifier.height(4.dp))
+//                Box(
+//                    modifier = Modifier
+//                        .height(40.dp)
+//                        .fillMaxWidth(),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text(
+//                        text = if (deviceStatus == "Active") "Active" else "Error",
+//                        fontSize = 16.sp,
+//                        fontWeight = FontWeight.Bold,
+//                        color = if (deviceStatus == "Active") Color.Green else Color.Red,
+//                        textAlign = TextAlign.Center
+//                    )
+//                }
+//            }
 
             // Cột 4: Thời gian
             Column(
