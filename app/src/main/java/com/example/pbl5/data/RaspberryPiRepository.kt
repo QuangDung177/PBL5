@@ -40,7 +40,11 @@ data class DeadFishHistory(
     val timestamp: Date? = null,
     val imageUrl: String? = null
 )
-
+data class TurbidityHistory(
+    val id: String = "",
+    val value: Float = 0f,
+    val timestamp: Date? = null
+)
 class RaspberryPiRepository(
     val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val firebaseManager: FirebaseManager = FirebaseManager()
@@ -200,7 +204,7 @@ class RaspberryPiRepository(
         }
     }
     // Lấy lịch sử độ đục nước
-    suspend fun getTurbidityHistory(serialId: String): List<TurbidityData> {
+    suspend fun getTurbidityHistory(serialId: String): List<TurbidityHistory> {
         return try {
             println("Fetching turbidity history for serialId: $serialId")
             val snapshot = firestore.collection("TURBIDITY")
@@ -209,16 +213,10 @@ class RaspberryPiRepository(
                 .get()
                 .await()
             val history = snapshot.documents.map { doc ->
-                val value = doc.getDouble("value")?.toFloat() ?: 0f
-                val status = when {
-                    value < 2.0 -> "Tốt"
-                    value <= 3.0 -> "Trung bình"
-                    else -> "Xấu"
-                }
-                TurbidityData(
-                    value = value,
-                    timestamp = doc.getTimestamp("timestamp")?.toDate(),
-                    status = status
+                TurbidityHistory(
+                    id = doc.id,
+                    value = doc.getDouble("value")?.toFloat() ?: 0f,
+                    timestamp = doc.getTimestamp("timestamp")?.toDate()
                 )
             }
             println("Fetched ${history.size} turbidity history records")
