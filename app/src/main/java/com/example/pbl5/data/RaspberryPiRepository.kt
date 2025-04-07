@@ -1,6 +1,7 @@
 package com.example.pbl5.data
 
 import com.example.pbl5.utils.FirebaseManager
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
@@ -8,7 +9,7 @@ import java.util.Date
 
 data class RaspberryPiData(
     val totalFishCount: Int = 0,
-    val status: String = "Hoạt động", // Trạng thái hoạt động của thiết bị
+    val status: String = "Hoạt động",
     val lastSeen: Date? = null
 )
 
@@ -19,19 +20,54 @@ data class DeadFishData(
 data class TurbidityData(
     val value: Float = 0f,
     val timestamp: Date? = null,
-    val status: String = "Tốt" // Trạng thái độ đục nước: Tốt, Trung bình, Xấu
+    val status: String = "Tốt"
 )
 
 data class TurbidityDistribution(
-    val below2: Int = 0,  // Số bản ghi < 2.0 NTU
-    val between2And3: Int = 0,  // Số bản ghi 2.0 - 3.0 NTU
-    val above3: Int = 0  // Số bản ghi > 3.0 NTU
+    val below2: Int = 0,
+    val between2And3: Int = 0,
+    val above3: Int = 0
+)
+
+data class UserData(
+    val phoneNumber: String = "",
+    val displayName: String = "User"
 )
 
 class RaspberryPiRepository(
     val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val firebaseManager: FirebaseManager = FirebaseManager()
 ) {
+    // Lấy thông tin người dùng từ Firebase Auth và Firestore
+    suspend fun getUserData(): Result<UserData> {
+        return try {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                Result.Error("Không có người dùng đăng nhập")
+            } else {
+                // Bỏ tiền tố +84 và thêm số 0 vào đầu
+                val rawPhoneNumber = currentUser.phoneNumber?.removePrefix("+84") ?: ""
+                val phoneNumber = if (rawPhoneNumber.isNotEmpty()) "0$rawPhoneNumber" else ""
+                if (phoneNumber.isEmpty()) {
+                    Result.Error("Không thể lấy số điện thoại của người dùng")
+                } else {
+                    val doc = firestore.collection("USERS")
+                        .document(phoneNumber)
+                        .get()
+                        .await()
+                    if (doc.exists()) {
+                        val displayName = doc.getString("displayName") ?: "User"
+                        Result.Success(UserData(phoneNumber = phoneNumber, displayName = displayName))
+                    } else {
+                        Result.Error("Không tìm thấy thông tin người dùng với số điện thoại: $phoneNumber")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Result.Error("Lỗi khi lấy thông tin người dùng: ${e.message}")
+        }
+    }
+
     // Lấy thông tin Raspberry Pi
     suspend fun getRaspberryPiData(serialId: String): RaspberryPiData? {
         return try {
@@ -42,7 +78,7 @@ class RaspberryPiRepository(
             if (document.exists()) {
                 RaspberryPiData(
                     totalFishCount = document.getLong("totalFishCount")?.toInt() ?: 0,
-                    status = document.getString("status") ?: "Hoạt động", // Trạng thái thiết bị
+                    status = document.getString("status") ?: "Hoạt động",
                     lastSeen = document.getTimestamp("lastSeen")?.toDate()
                 )
             } else {
@@ -53,6 +89,7 @@ class RaspberryPiRepository(
         }
     }
 
+    // Lấy số cá chết mới nhất
     suspend fun getLatestDeadFishCount(serialId: String): DeadFishData? {
         return try {
             val snapshot = firestore.collection("DEAD_FISH_DETECTIONS")
@@ -63,16 +100,13 @@ class RaspberryPiRepository(
                 .await()
             if (snapshot.documents.isNotEmpty()) {
                 val doc = snapshot.documents.first()
-                println("DeadFishData: ${doc.data}") // Thêm log để kiểm tra dữ liệu
                 DeadFishData(
                     count = doc.getLong("count")?.toInt() ?: 0
                 )
             } else {
-                println("No dead fish data found for serialId: $serialId")
                 null
             }
         } catch (e: Exception) {
-            println("Error fetching dead fish data: $e")
             null
         }
     }
@@ -94,18 +128,15 @@ class RaspberryPiRepository(
                     value <= 3.0 -> "Trung bình"
                     else -> "Xấu"
                 }
-                println("Turbidity data: ${doc.data}") // Thêm log
                 TurbidityData(
                     value = value,
                     timestamp = doc.getTimestamp("timestamp")?.toDate(),
                     status = status
                 )
             } else {
-                println("No turbidity data found for serialId: $serialId")
                 null
             }
         } catch (e: Exception) {
-            println("Error fetching turbidity data: $e")
             null
         }
     }
@@ -137,4 +168,9 @@ class RaspberryPiRepository(
             TurbidityDistribution()
         }
     }
+}
+
+sealed class Result<out T> {
+    data class Success<out T>(val data: T) : Result<T>()
+    data class Error(val message: String) : Result<Nothing>()
 }

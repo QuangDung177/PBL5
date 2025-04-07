@@ -4,7 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import com.example.pbl5.ui.screens.MainScreen
+import androidx.navigation.compose.rememberNavController
+import com.example.pbl5.ui.navigation.AppNavigation
 import com.example.pbl5.ui.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +14,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MainScreen(viewModel = viewModel)
+            val navController = rememberNavController()
+            AppNavigation(
+                navController = navController,
+                viewModel = viewModel
+            )
         }
     }
 }
