@@ -25,23 +25,16 @@ fun SettingsScreen(
     navController: NavHostController,
     mainViewModel: MainViewModel
 ) {
-    // Khởi tạo SettingsViewModel với MainViewModel
     val settingsViewModel = SettingsViewModel(mainViewModel = mainViewModel)
-
-    // Lấy giá trị từ SettingsViewModel
     val deadFishThreshold by settingsViewModel.deadFishThreshold.collectAsState()
     val turbidityThreshold by settingsViewModel.turbidityThreshold.collectAsState()
-
-    // Lấy context để khởi tạo Intent khi đăng xuất
     val context = LocalContext.current
 
     Scaffold(
         topBar = {
             AppTopBar(
-                title = "Settings",
-                onNotificationClick = {
-                    navController.navigate("Notifications")
-                }
+                title = "Cài đặt",
+                onNotificationClick = { navController.navigate("Notifications") }
             )
         },
         bottomBar = {
@@ -49,9 +42,7 @@ fun SettingsScreen(
                 selectedTab = "Settings",
                 onTabSelected = { tab ->
                     navController.navigate(tab) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
-                        }
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -67,7 +58,6 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Phần cài đặt ngưỡng
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -84,7 +74,6 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = deadFishThreshold,
                     onValueChange = { newValue ->
-                        // Chỉ cho phép nhập số
                         if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
                             settingsViewModel.updateDeadFishThreshold(newValue)
                         }
@@ -93,6 +82,7 @@ fun SettingsScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(Color.White) // Thêm nền trắng
                         .padding(bottom = 16.dp)
                 )
 
@@ -100,19 +90,19 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = turbidityThreshold,
                     onValueChange = { newValue ->
-                        // Chỉ cho phép nhập số
-                        if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
+                        // Cho phép số thập phân với tối đa 1 chữ số sau dấu chấm
+                        if (newValue.matches(Regex("^\\d*\\.?\\d{0,1}$")) || newValue.isEmpty()) {
                             settingsViewModel.updateTurbidityThreshold(newValue)
                         }
                     },
                     label = { Text("Ngưỡng độ đục nước để thông báo") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(Color.White) // Thêm nền trắng
                         .padding(bottom = 16.dp)
                 )
 
-                // Nút Cập nhật
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -120,21 +110,14 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Button(
-                        onClick = {
-                            settingsViewModel.saveThresholdsToFirebase()
-                        },
+                        onClick = { settingsViewModel.saveThresholdsToFirebase() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E90FF))
                     ) {
-                        Text(
-                            text = "Cập nhật",
-                            color = Color.White,
-                            fontSize = 16.sp
-                        )
+                        Text(text = "Cập nhật", color = Color.White, fontSize = 16.sp)
                     }
                 }
             }
 
-            // Nút Đăng xuất
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -143,18 +126,13 @@ fun SettingsScreen(
             ) {
                 Button(
                     onClick = {
-                        // Chuyển về LoginActivity và xóa stack điều hướng
                         val intent = Intent(context, LoginActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         context.startActivity(intent)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text(
-                        text = "Đăng xuất",
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
+                    Text(text = "Đăng xuất", color = Color.White, fontSize = 16.sp)
                 }
             }
         }
