@@ -92,7 +92,7 @@ fun TurbidityChart(distribution: TurbidityDistribution) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Tốt: <2.0 NTU (${distribution.below2})",
+                            text = "Tốt: <100 NTU (${distribution.below2})",
                             fontSize = 14.sp,
                             color = Color.Black
                         )
@@ -106,7 +106,7 @@ fun TurbidityChart(distribution: TurbidityDistribution) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Trung bình: 2.0 - 3.0 NTU (${distribution.between2And3})",
+                            text = "Trung bình: 100-300 NTU (${distribution.between2And3})",
                             fontSize = 14.sp,
                             color = Color.Black
                         )
@@ -120,7 +120,7 @@ fun TurbidityChart(distribution: TurbidityDistribution) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Xấu: >3.0 NTU (${distribution.above3})",
+                            text = "Xấu: >300 NTU (${distribution.above3})",
                             fontSize = 14.sp,
                             color = Color.Black
                         )

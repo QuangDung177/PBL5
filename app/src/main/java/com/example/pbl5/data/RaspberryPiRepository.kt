@@ -159,8 +159,8 @@ class RaspberryPiRepository(
                 val doc = snapshot.documents.first()
                 val value = doc.getDouble("value")?.toFloat() ?: 0f
                 val status = when {
-                    value < 2.0 -> "Tốt"
-                    value <= 3.0 -> "Trung bình"
+                    value < 100.0 -> "Tốt"
+                    value <= 300.0 -> "Trung bình"
                     else -> "Xấu"
                 }
                 TurbidityData(
@@ -183,21 +183,21 @@ class RaspberryPiRepository(
                 .whereEqualTo("serial_id", serialId)
                 .get()
                 .await()
-            var below2 = 0
-            var between2And3 = 0
-            var above3 = 0
+            var below100 = 0  // Thay vì below2
+            var between100And300 = 0  // Thay vì between2And3
+            var above300 = 0  // Thay vì above3
             snapshot.documents.forEach { doc ->
                 val value = doc.getDouble("value")?.toFloat() ?: 0f
                 when {
-                    value < 2.0 -> below2++
-                    value in 2.0..3.0 -> between2And3++
-                    else -> above3++
+                    value < 100.0 -> below100++
+                    value in 100.0..300.0 -> between100And300++
+                    else -> above300++
                 }
             }
             TurbidityDistribution(
-                below2 = below2,
-                between2And3 = between2And3,
-                above3 = above3
+                below2 = below100,           // Giữ tên thuộc tính nhưng cập nhật giá trị
+                between2And3 = between100And300,
+                above3 = above300
             )
         } catch (e: Exception) {
             TurbidityDistribution()
