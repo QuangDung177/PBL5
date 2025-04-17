@@ -386,16 +386,16 @@ class RaspberryPiRepository(
         val messages = mutableListOf<String>()
         val deadFishData = getLatestDeadFishCount(serialId)
         if (deadFishData != null && deadFishData.count > deadFishThreshold) {
-            messages.add("Raspberry Pi phát hiện ${deadFishData.count} dead fish, exceeding threshold of $deadFishThreshold!")
+            messages.add("Raspberry Pi phát hiện ${deadFishData.count} cá chết!")
         }
         val turbidityData = getLatestTurbidity(serialId)
         if (turbidityData != null && turbidityData.value > turbidityThreshold) {
-            messages.add("Water turbidity is ${turbidityData.value}, exceeding threshold of $turbidityThreshold!")
+            messages.add("Độ đục nước là ${turbidityData.value}!")
         }
 
         if (messages.isNotEmpty()) {
             val combinedMessage = messages.joinToString("\n")
-            val success = sendNotification(fcmToken, "Raspberry Pi Alert", combinedMessage)
+            val success = sendNotification(fcmToken, "Raspberry Pi cảnh báo", combinedMessage)
             println("Gửi thông báo: $success")
             val notificationData = hashMapOf(
                 "message" to combinedMessage,
