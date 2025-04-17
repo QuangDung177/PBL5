@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class SettingsViewModel(
     private val mainViewModel: MainViewModel
@@ -49,8 +50,8 @@ class SettingsViewModel(
         _turbidityThreshold.value = value
     }
 
-    fun saveThresholdsToFirebase() {
-        viewModelScope.launch {
+    suspend fun saveThresholdsToFirebase(): Boolean {
+        return try {
             val deadFishThresholdValue = _deadFishThreshold.value.toIntOrNull() ?: 1
             val turbidityThresholdValue = _turbidityThreshold.value.toDoubleOrNull() ?: 2.0
 
@@ -59,13 +60,12 @@ class SettingsViewModel(
                 "settings.turbidityThreshold" to turbidityThresholdValue
             )
 
-            raspberryPiDocRef.update(updates as Map<String, Any>)
-                .addOnSuccessListener {
-                    println("Updated deadFishThreshold to $deadFishThresholdValue and turbidityThreshold to $turbidityThresholdValue")
-                }
-                .addOnFailureListener { e ->
-                    println("Failed to update thresholds: $e")
-                }
+            raspberryPiDocRef.update(updates as Map<String, Any>).await()
+            println("Updated deadFishThreshold to $deadFishThresholdValue and turbidityThreshold to $turbidityThresholdValue")
+            true // Thành công
+        } catch (e: Exception) {
+            println("Failed to update thresholds: $e")
+            false // Thất bại
         }
     }
 }

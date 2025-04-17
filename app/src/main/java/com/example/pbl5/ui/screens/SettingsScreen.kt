@@ -18,6 +18,8 @@ import com.example.pbl5.ui.components.BottomNavigationBar
 import com.example.pbl5.ui.viewmodel.MainViewModel
 import com.example.pbl5.ui.viewmodel.SettingsViewModel
 import android.content.Intent
+import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +31,9 @@ fun SettingsScreen(
     val deadFishThreshold by settingsViewModel.deadFishThreshold.collectAsState()
     val turbidityThreshold by settingsViewModel.turbidityThreshold.collectAsState()
     val context = LocalContext.current
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -48,7 +53,8 @@ fun SettingsScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -70,7 +76,6 @@ fun SettingsScreen(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Ngưỡng cá chết
                 OutlinedTextField(
                     value = deadFishThreshold,
                     onValueChange = { newValue ->
@@ -82,15 +87,13 @@ fun SettingsScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White) // Thêm nền trắng
+                        .background(Color.White)
                         .padding(bottom = 16.dp)
                 )
 
-                // Ngưỡng độ đục nước
                 OutlinedTextField(
                     value = turbidityThreshold,
                     onValueChange = { newValue ->
-                        // Cho phép số thập phân với tối đa 1 chữ số sau dấu chấm
                         if (newValue.matches(Regex("^\\d*\\.?\\d{0,1}$")) || newValue.isEmpty()) {
                             settingsViewModel.updateTurbidityThreshold(newValue)
                         }
@@ -99,7 +102,7 @@ fun SettingsScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White) // Thêm nền trắng
+                        .background(Color.White)
                         .padding(bottom = 16.dp)
                 )
 
@@ -110,7 +113,22 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Button(
-                        onClick = { settingsViewModel.saveThresholdsToFirebase() },
+                        onClick = {
+                            scope.launch {
+                                val success = settingsViewModel.saveThresholdsToFirebase()
+                                if (success) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Cập nhật thành công",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                } else {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Cập nhật thất bại",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            }
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E90FF))
                     ) {
                         Text(text = "Cập nhật", color = Color.White, fontSize = 16.sp)

@@ -5,7 +5,13 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.util.Date
+import java.util.concurrent.TimeUnit
 
 data class RaspberryPiData(
     val totalFishCount: Int = 0,
@@ -40,15 +46,26 @@ data class DeadFishHistory(
     val timestamp: Date? = null,
     val imageUrl: String? = null
 )
+
 data class TurbidityHistory(
     val id: String = "",
     val value: Float = 0f,
     val timestamp: Date? = null
 )
+
 class RaspberryPiRepository(
     val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val firebaseManager: FirebaseManager = FirebaseManager()
 ) {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    // Thay bằng FCM Server Key của bạn (lấy từ Firebase Console > Project Settings > Cloud Messaging)
+    private val FCM_SERVER_KEY = "YOUR_FCM_SERVER_KEY_HERE"
+
     // Lấy thông tin người dùng từ Firebase Auth và Firestore
     suspend fun getUserData(): Result<UserData> {
         return try {
@@ -183,9 +200,9 @@ class RaspberryPiRepository(
                 .whereEqualTo("serial_id", serialId)
                 .get()
                 .await()
-            var below100 = 0  // Thay vì below2
-            var between100And300 = 0  // Thay vì between2And3
-            var above300 = 0  // Thay vì above3
+            var below100 = 0
+            var between100And300 = 0
+            var above300 = 0
             snapshot.documents.forEach { doc ->
                 val value = doc.getDouble("value")?.toFloat() ?: 0f
                 when {
@@ -195,7 +212,7 @@ class RaspberryPiRepository(
                 }
             }
             TurbidityDistribution(
-                below2 = below100,           // Giữ tên thuộc tính nhưng cập nhật giá trị
+                below2 = below100,
                 between2And3 = between100And300,
                 above3 = above300
             )
@@ -203,6 +220,7 @@ class RaspberryPiRepository(
             TurbidityDistribution()
         }
     }
+
     // Lấy lịch sử độ đục nước
     suspend fun getTurbidityHistory(serialId: String): List<TurbidityHistory> {
         return try {
@@ -224,6 +242,120 @@ class RaspberryPiRepository(
         } catch (e: Exception) {
             println("Error fetching TurbidityHistory: ${e.message}")
             emptyList()
+        }
+    }
+
+    // Lấy ngưỡng từ Firestore
+    suspend fun getThresholds(serialId: String): Pair<Int, Float>? {
+        return try {
+            val document = firestore.collection("RASPBERRY_PIS")
+                .document(serialId)
+                .get()
+                .await()
+            if (document.exists()) {
+                val deadFishThreshold = document.getLong("deadFishThreshold")?.toInt() ?: 0
+                val turbidityThreshold = document.getDouble("turbidityThreshold")?.toFloat() ?: 0f
+                Pair(deadFishThreshold, turbidityThreshold)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error fetching thresholds: ${e.message}")
+            null
+        }
+    }
+
+    // Lấy FCM token của người dùng dựa trên ownerPhone
+    suspend fun getFcmToken(phoneNumber: String): String? {
+        return try {
+            val document = firestore.collection("USERS")
+                .document(phoneNumber)
+                .get()
+                .await()
+            if (document.exists()) {
+                document.getString("fcmToken")
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error fetching FCM token: ${e.message}")
+            null
+        }
+    }
+
+    // Gửi thông báo qua FCM
+    suspend fun sendNotification(toToken: String, title: String, body: String): Boolean {
+        return try {
+            val json = JSONObject().apply {
+                put("to", toToken)
+                put("notification", JSONObject().apply {
+                    put("title", title)
+                    put("body", body)
+                })
+            }
+
+            val requestBody = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val request = Request.Builder()
+                .url("https://fcm.googleapis.com/fcm/send")
+                .post(requestBody)
+                .addHeader("Authorization", "key=$FCM_SERVER_KEY")
+                .build()
+
+            val response = client.newCall(request).execute()
+            val success = response.isSuccessful
+            response.close()
+            success
+        } catch (e: Exception) {
+            println("Error sending FCM notification: ${e.message}")
+            false
+        }
+    }
+
+    // Kiểm tra ngưỡng và gửi thông báo nếu vượt ngưỡng
+    suspend fun checkAndNotify(serialId: String) {
+        // Lấy ngưỡng
+        val thresholds = getThresholds(serialId) ?: return
+        val (deadFishThreshold, turbidityThreshold) = thresholds
+
+        // Lấy ownerPhone từ RASPBERRY_PIS
+        val raspberryPiDoc = firestore.collection("RASPBERRY_PIS")
+            .document(serialId)
+            .get()
+            .await()
+        if (!raspberryPiDoc.exists()) return
+        val ownerPhone = raspberryPiDoc.getString("ownerPhone") ?: return
+
+        // Lấy FCM token của người dùng
+        val fcmToken = getFcmToken(ownerPhone) ?: return
+
+        // Kiểm tra số cá chết
+        val deadFishData = getLatestDeadFishCount(serialId)
+        if (deadFishData != null && deadFishData.count > deadFishThreshold) {
+            val message = "Raspberry Pi detected ${deadFishData.count} dead fish, exceeding threshold of $deadFishThreshold!"
+            sendNotification(fcmToken, "Dead Fish Alert", message)
+
+            // Lưu thông báo vào Firestore
+            val notificationData = hashMapOf(
+                "message" to message,
+                "timestamp" to Date(),
+                "userPhone" to ownerPhone
+            )
+            firestore.collection("NOTIFICATIONS").add(notificationData).await()
+        }
+
+        // Kiểm tra độ đục nước
+        val turbidityData = getLatestTurbidity(serialId)
+        if (turbidityData != null && turbidityData.value > turbidityThreshold) {
+            val message = "Water turbidity is ${turbidityData.value}, exceeding threshold of $turbidityThreshold!"
+            sendNotification(fcmToken, "Turbidity Alert", message)
+
+            // Lưu thông báo vào Firestore
+            val notificationData = hashMapOf(
+                "message" to message,
+                "timestamp" to Date(),
+                "userPhone" to ownerPhone
+            )
+            firestore.collection("NOTIFICATIONS").add(notificationData).await()
         }
     }
 }
