@@ -1,18 +1,23 @@
 package com.example.pbl5.data
 
+import android.content.Context
+import com.example.pbl5.R
 import com.example.pbl5.utils.FirebaseManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.auth.oauth2.GoogleCredentials
 import kotlinx.coroutines.tasks.await
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.InputStream
 import java.util.Date
 import java.util.concurrent.TimeUnit
-
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 data class RaspberryPiData(
     val totalFishCount: Int = 0,
     val status: String = "Hoạt động",
@@ -54,6 +59,7 @@ data class TurbidityHistory(
 )
 
 class RaspberryPiRepository(
+    private val context: Context,
     val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val firebaseManager: FirebaseManager = FirebaseManager()
 ) {
@@ -63,8 +69,30 @@ class RaspberryPiRepository(
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Thay bằng FCM Server Key của bạn (lấy từ Firebase Console > Project Settings > Cloud Messaging)
-    private val FCM_SERVER_KEY = "YOUR_FCM_SERVER_KEY_HERE"
+    // Project ID của bạn (lấy từ file service-account-file.json)
+    private val PROJECT_ID = "pbl5-9328d" // Thay bằng projectId thực tế
+
+    // Lấy Access Token từ Service Account
+    private suspend fun getAccessToken(): String? {
+        return try {
+            // Chuyển tác vụ mạng sang thread I/O
+            withContext(Dispatchers.IO) {
+                val inputStream: InputStream = context.resources.openRawResource(R.raw.service_account_file)
+                val googleCredentials = GoogleCredentials.fromStream(inputStream)
+                    .createScoped(listOf("https://www.googleapis.com/auth/firebase.messaging"))
+                googleCredentials.refreshIfExpired() // Tác vụ mạng
+                val token = googleCredentials.accessToken?.tokenValue
+                if (token == null) {
+                    println("Access Token is null after refresh")
+                }
+                token
+            }
+        } catch (e: Exception) {
+            println("Error getting Access Token: ${e.message ?: "Unknown error"}")
+            e.printStackTrace()
+            null
+        }
+    }
 
     // Lấy thông tin người dùng từ Firebase Auth và Firestore
     suspend fun getUserData(): Result<UserData> {
@@ -253,10 +281,25 @@ class RaspberryPiRepository(
                 .get()
                 .await()
             if (document.exists()) {
-                val deadFishThreshold = document.getLong("deadFishThreshold")?.toInt() ?: 0
-                val turbidityThreshold = document.getDouble("turbidityThreshold")?.toFloat() ?: 0f
+                // Lấy map "settings"
+                val settings = document.get("settings") as? Map<String, Any> ?: emptyMap()
+                // Lấy deadFishThreshold từ settings
+                val deadFishThreshold = when (val value = settings["deadFishThreshold"]) {
+                    is Long -> value.toInt()
+                    is Int -> value
+                    else -> 0 // Giá trị mặc định nếu không tìm thấy hoặc không hợp lệ
+                }
+                // Lấy turbidityThreshold từ settings
+                val turbidityThreshold = when (val value = settings["turbidityThreshold"]) {
+                    is Double -> value.toFloat()
+                    is Long -> value.toFloat()
+                    is Int -> value.toFloat()
+                    else -> 0f // Giá trị mặc định nếu không tìm thấy hoặc không hợp lệ
+                }
+                println("Fetched thresholds: deadFishThreshold=$deadFishThreshold, turbidityThreshold=$turbidityThreshold")
                 Pair(deadFishThreshold, turbidityThreshold)
             } else {
+                println("Document for serialId $serialId does not exist")
                 null
             }
         } catch (e: Exception) {
@@ -283,75 +326,79 @@ class RaspberryPiRepository(
         }
     }
 
-    // Gửi thông báo qua FCM
+    // Gửi thông báo qua FCM API V1
     suspend fun sendNotification(toToken: String, title: String, body: String): Boolean {
         return try {
-            val json = JSONObject().apply {
-                put("to", toToken)
-                put("notification", JSONObject().apply {
-                    put("title", title)
-                    put("body", body)
+            val accessToken = getAccessToken() ?: run {
+                println("Failed to get Access Token")
+                return false
+            }
+            println("Access Token: $accessToken")
+            val message = JSONObject().apply {
+                put("message", JSONObject().apply {
+                    put("token", toToken)
+                    put("notification", JSONObject().apply {
+                        put("title", title)
+                        put("body", body)
+                    })
                 })
             }
-
-            val requestBody = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val requestBody = message.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
             val request = Request.Builder()
-                .url("https://fcm.googleapis.com/fcm/send")
+                .url("https://fcm.googleapis.com/v1/projects/$PROJECT_ID/messages:send")
                 .post(requestBody)
-                .addHeader("Authorization", "key=$FCM_SERVER_KEY")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .addHeader("Content-Type", "application/json")
                 .build()
-
-            val response = client.newCall(request).execute()
+            // Chuyển tác vụ mạng sang thread I/O
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(request).execute()
+            }
             val success = response.isSuccessful
+            if (!success) {
+                val responseBody = response.body?.string() ?: "No response body"
+                println("Error sending FCM notification: HTTP ${response.code}, Body: $responseBody")
+            } else {
+                println("Successfully sent FCM notification")
+            }
             response.close()
             success
         } catch (e: Exception) {
-            println("Error sending FCM notification: ${e.message}")
+            println("Error sending FCM notification: ${e.message ?: "Unknown error"}")
+            e.printStackTrace()
             false
         }
     }
 
     // Kiểm tra ngưỡng và gửi thông báo nếu vượt ngưỡng
     suspend fun checkAndNotify(serialId: String) {
-        // Lấy ngưỡng
         val thresholds = getThresholds(serialId) ?: return
         val (deadFishThreshold, turbidityThreshold) = thresholds
-
-        // Lấy ownerPhone từ RASPBERRY_PIS
+        println("Thresholds used: deadFishThreshold=$deadFishThreshold, turbidityThreshold=$turbidityThreshold")
         val raspberryPiDoc = firestore.collection("RASPBERRY_PIS")
             .document(serialId)
             .get()
             .await()
         if (!raspberryPiDoc.exists()) return
         val ownerPhone = raspberryPiDoc.getString("ownerPhone") ?: return
-
-        // Lấy FCM token của người dùng
         val fcmToken = getFcmToken(ownerPhone) ?: return
 
-        // Kiểm tra số cá chết
+        val messages = mutableListOf<String>()
         val deadFishData = getLatestDeadFishCount(serialId)
         if (deadFishData != null && deadFishData.count > deadFishThreshold) {
-            val message = "Raspberry Pi detected ${deadFishData.count} dead fish, exceeding threshold of $deadFishThreshold!"
-            sendNotification(fcmToken, "Dead Fish Alert", message)
-
-            // Lưu thông báo vào Firestore
-            val notificationData = hashMapOf(
-                "message" to message,
-                "timestamp" to Date(),
-                "userPhone" to ownerPhone
-            )
-            firestore.collection("NOTIFICATIONS").add(notificationData).await()
+            messages.add("Raspberry Pi phát hiện ${deadFishData.count} dead fish, exceeding threshold of $deadFishThreshold!")
         }
-
-        // Kiểm tra độ đục nước
         val turbidityData = getLatestTurbidity(serialId)
         if (turbidityData != null && turbidityData.value > turbidityThreshold) {
-            val message = "Water turbidity is ${turbidityData.value}, exceeding threshold of $turbidityThreshold!"
-            sendNotification(fcmToken, "Turbidity Alert", message)
+            messages.add("Water turbidity is ${turbidityData.value}, exceeding threshold of $turbidityThreshold!")
+        }
 
-            // Lưu thông báo vào Firestore
+        if (messages.isNotEmpty()) {
+            val combinedMessage = messages.joinToString("\n")
+            val success = sendNotification(fcmToken, "Raspberry Pi Alert", combinedMessage)
+            println("Gửi thông báo: $success")
             val notificationData = hashMapOf(
-                "message" to message,
+                "message" to combinedMessage,
                 "timestamp" to Date(),
                 "userPhone" to ownerPhone
             )

@@ -1,6 +1,6 @@
 package com.example.pbl5.ui.screens
-import coil.compose.AsyncImage
 
+import coil.compose.AsyncImage
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,27 +27,33 @@ import java.util.*
 fun FishScreen(
     navController: NavHostController,
     mainViewModel: MainViewModel,
-    fishViewModel: FishViewModel = FishViewModel(mainViewModel = mainViewModel)
+    fishViewModel: FishViewModel
 ) {
     val raspberryPiData by mainViewModel.raspberryPiData
     val deadFishData by mainViewModel.deadFishData
     val deadFishHistory by fishViewModel.deadFishHistory
     val filteredDeadFishHistory by fishViewModel.filteredDeadFishHistory
     val errorMessage by fishViewModel.errorMessage
+    val isLoading by fishViewModel.isLoading
 
-    // State để quản lý modal
     var showModal by remember { mutableStateOf(false) }
     var selectedImageUrl by remember { mutableStateOf<String?>(null) }
     var selectedTimestamp by remember { mutableStateOf<Long?>(null) }
     var selectedCount by remember { mutableStateOf<Int?>(null) }
 
-    // State để quản lý DatePicker
     val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // Tải lịch sử cá chết khi vào màn hình
-    LaunchedEffect(Unit) {
+    // Tải lại lịch sử cá chết và reset bộ lọc khi serialId thay đổi
+    LaunchedEffect(mainViewModel.serialId.value) {
         fishViewModel.loadDeadFishHistory()
+        fishViewModel.resetFilter()
+    }
+
+    // Ghi log để kiểm tra dữ liệu
+    LaunchedEffect(deadFishHistory, filteredDeadFishHistory) {
+        Log.d("FishScreen", "deadFishHistory size: ${deadFishHistory.size}")
+        Log.d("FishScreen", "filteredDeadFishHistory size: ${filteredDeadFishHistory.size}")
     }
 
     Scaffold(
@@ -72,101 +78,131 @@ fun FishScreen(
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F5))
                 .padding(padding)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                item {
-                    raspberryPiData?.let { piData ->
-                        FishStats(
-                            totalFishCount = piData.totalFishCount,
-                            deadFishCount = deadFishData?.count ?: 0
-                        )
-                    } ?: run {
-                        Text(
-                            text = "Chưa kết nối với Raspberry Pi",
-                            color = Color.Gray,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
-                item {
+            item {
+                raspberryPiData?.let { piData ->
+                    FishStats(
+                        totalFishCount = piData.totalFishCount,
+                        deadFishCount = deadFishData?.count ?: 0
+                    )
+                } ?: run {
                     Text(
-                        text = "Lịch sử cá chết",
-                        fontSize = 20.sp,
+                        text = "Chưa kết nối với Raspberry Pi",
+                        color = Color.Gray,
                         modifier = Modifier.padding(16.dp)
                     )
                 }
-                // Phần chọn ngày ngay dưới FishStats
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(onClick = { showDatePicker = true }) {
-                            Text("Chọn ngày")
-                        }
+            }
+            item {
+                Text(
+                    text = "Lịch sử cá chết",
+                    fontSize = 20.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(onClick = { showDatePicker = true }) {
+                        Text("Chọn ngày")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Lọc theo: ${
+                            datePickerState.selectedDateMillis?.let {
+                                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it))
+                            } ?: "Tất cả"
+                        }",
+                        fontSize = 16.sp
+                    )
+                    if (datePickerState.selectedDateMillis != null) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Lọc theo: ${
-                                datePickerState.selectedDateMillis?.let {
-                                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it))
-                                } ?: "Tất cả"
-                            }",
-                            fontSize = 16.sp
-                        )
-                        if (datePickerState.selectedDateMillis != null) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            TextButton(onClick = {
-                                datePickerState.selectedDateMillis = null
-                                fishViewModel.resetFilter()
-                                Log.d("FishScreen", "Đã xóa bộ lọc ngày")
-                            }) {
-                                Text("Xóa lọc")
-                            }
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis = null
+                            fishViewModel.resetFilter()
+                            Log.d("FishScreen", "Đã xóa bộ lọc ngày")
+                        }) {
+                            Text("Xóa lọc")
                         }
                     }
                 }
+            }
 
-
-
-                if (filteredDeadFishHistory.isNotEmpty()) {
-                    items(filteredDeadFishHistory) { history ->
-                        DeadFishHistoryItem(
-                            timestamp = history.timestamp?.time,
-                            count = history.count,
-                            onDetailClick = {
-                                selectedImageUrl = history.imageUrl
-                                selectedTimestamp = history.timestamp?.time
-                                selectedCount = history.count
-                                showModal = true
-                            }
-                        )
+            if (isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
                     }
-                } else {
-                    item {
-                        Text(
-                            text = errorMessage ?: "Không có lịch sử cá chết cho ngày đã chọn",
-                            color = Color.Gray,
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .background(Color.White)
-                        )
-                    }
+                }
+            } else if (errorMessage != null) {
+                item {
+                    Text(
+                        text = errorMessage ?: "Lỗi không xác định",
+                        color = Color.Red,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else if (mainViewModel.serialId.value.isBlank()) {
+                item {
+                    Text(
+                        text = "Serial ID không hợp lệ",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else if (datePickerState.selectedDateMillis == null && deadFishHistory.isNotEmpty()) {
+                items(deadFishHistory) { history ->
+                    DeadFishHistoryItem(
+                        timestamp = history.timestamp?.time,
+                        count = history.count,
+                        onDetailClick = {
+                            selectedImageUrl = history.imageUrl
+                            selectedTimestamp = history.timestamp?.time
+                            selectedCount = history.count
+                            showModal = true
+                        }
+                    )
+                }
+            } else if (filteredDeadFishHistory.isNotEmpty()) {
+                items(filteredDeadFishHistory) { history ->
+                    DeadFishHistoryItem(
+                        timestamp = history.timestamp?.time,
+                        count = history.count,
+                        onDetailClick = {
+                            selectedImageUrl = history.imageUrl
+                            selectedTimestamp = history.timestamp?.time
+                            selectedCount = history.count
+                            showModal = true
+                        }
+                    )
+                }
+            } else {
+                item {
+                    Text(
+                        text = "Không có lịch sử cá chết cho ngày đã chọn",
+                        color = Color.Gray,
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .background(Color.White)
+                    )
                 }
             }
         }
 
-        // Modal hiển thị ảnh cá chết
         if (showModal && selectedImageUrl != null) {
             AlertDialog(
                 onDismissRequest = { showModal = false },
@@ -214,7 +250,6 @@ fun FishScreen(
             )
         }
 
-        // Hiển thị DatePicker
         if (showDatePicker) {
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },

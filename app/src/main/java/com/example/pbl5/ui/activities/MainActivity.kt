@@ -5,20 +5,25 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
-import com.example.pbl5.data.RaspberryPiRepository
 import com.example.pbl5.ui.navigation.AppNavigation
 import com.example.pbl5.ui.viewmodel.MainViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: MainViewModel by viewModels()
     private val firestore = FirebaseFirestore.getInstance()
-    private val repository = RaspberryPiRepository()
+
+    // Tạo ViewModel với context
+    private val viewModel: MainViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return MainViewModel(this@MainActivity) as T
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,9 +37,6 @@ class MainActivity : ComponentActivity() {
 
         // Lấy và lưu FCM token
         saveFcmToken()
-
-        // Kiểm tra ngưỡng và gửi thông báo
-        checkThresholds()
     }
 
     private fun saveFcmToken() {
@@ -62,19 +64,6 @@ class MainActivity : ComponentActivity() {
                 .addOnFailureListener { e ->
                     Log.e("FCM", "Lỗi khi lưu FCM token: ${e.message}")
                 }
-        }
-    }
-
-    private fun checkThresholds() {
-        // Thay "your_serial_id" bằng serialId thực tế của Raspberry Pi
-        val serialId = "your_serial_id"
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                repository.checkAndNotify(serialId)
-                Log.d("MainActivity", "Kiểm tra ngưỡng thành công")
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Lỗi khi kiểm tra ngưỡng: ${e.message}")
-            }
         }
     }
 

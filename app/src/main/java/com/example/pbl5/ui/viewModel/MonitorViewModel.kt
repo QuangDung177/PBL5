@@ -1,5 +1,6 @@
 package com.example.pbl5.ui.viewmodel
 
+import android.content.Context
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -14,8 +15,10 @@ import kotlinx.coroutines.coroutineScope
 
 class MonitorViewModel(
     private val mainViewModel: MainViewModel,
-    private val repository: RaspberryPiRepository = RaspberryPiRepository()
+    context: Context
 ) : ViewModel() {
+    private val repository: RaspberryPiRepository = RaspberryPiRepository(context)
+
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
@@ -36,7 +39,7 @@ class MonitorViewModel(
     }
 
     private fun loadData() {
-        val serialId = mainViewModel.serialId.value
+        val serialId = mainViewModel.serialId.value // Sửa: Sử dụng serialId.value
         if (serialId.isBlank()) {
             _errorMessage.value = "Serial ID không được để trống"
             return

@@ -5,13 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.pbl5.ui.components.*
 import com.example.pbl5.ui.viewmodel.MainViewModel
@@ -19,7 +17,7 @@ import com.example.pbl5.ui.viewmodel.MainViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
-    val serialId by viewModel.serialId
+    val serialId by viewModel.serialId // Sử dụng by với MutableState
     val isLoading by viewModel.isLoading
     val errorMessage by viewModel.errorMessage
     val raspberryPiData by viewModel.raspberryPiData
@@ -56,9 +54,10 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                 .background(Color(0xFFF5F5F5))
                 .padding(padding)
         ) {
+            // Giữ nguyên SerialInput
             SerialInput(
                 serialId = serialId,
-                onSerialIdChange = { viewModel.serialId.value = it },
+                onSerialIdChange = { viewModel.serialId.value = it }, // Cập nhật serialId
                 onConnectClick = { viewModel.connectToRaspberryPi() },
                 isLoading = isLoading,
                 errorMessage = errorMessage
@@ -67,7 +66,7 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
             raspberryPiData?.let { piData ->
                 FishStats(
                     totalFishCount = piData.totalFishCount,
-                    deadFishData?.count ?: 0
+                    deadFishCount = deadFishData?.count ?: 0 // Sửa tham số deadFishData thành deadFishCount
                 )
                 turbidityData?.let { turbidity ->
                     TurbidityStats(
@@ -78,7 +77,7 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                     )
                 } ?: run {
                     Text(
-                        "Chưa có dữ liệu độ đục nước",
+                        text = "Chưa có dữ liệu độ đục nước",
                         color = Color.Gray,
                         modifier = Modifier.padding(16.dp)
                     )
@@ -86,7 +85,7 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                 TurbidityChart(distribution = turbidityDistribution)
             } ?: run {
                 Text(
-                    "Chưa kết nối với Raspberry Pi",
+                    text = "Chưa kết nối với Raspberry Pi",
                     color = Color.Gray,
                     modifier = Modifier.padding(16.dp)
                 )

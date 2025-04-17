@@ -4,8 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -13,13 +13,13 @@ import androidx.navigation.NavHostController
 import com.example.pbl5.ui.components.*
 import com.example.pbl5.ui.viewmodel.MainViewModel
 import com.example.pbl5.ui.viewmodel.MonitorViewModel
-import androidx.compose.ui.Alignment
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonitorScreen(
     navController: NavHostController,
     mainViewModel: MainViewModel,
-    monitorViewModel: MonitorViewModel = MonitorViewModel(mainViewModel = mainViewModel)
+    monitorViewModel: MonitorViewModel
 ) {
     val isLoading by monitorViewModel.isLoading
     val errorMessage by monitorViewModel.errorMessage
@@ -78,10 +78,10 @@ fun MonitorScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
-            } else if (mainViewModel.serialId.value.isBlank()) {
+            } else if (mainViewModel.serialId.value.isBlank()) { // Sửa: Sử dụng serialId.value
                 item {
                     Text(
-                        text = "Vui lòng nhập Serial ID từ màn hình chính",
+                        text = "Serial ID không hợp lệ",
                         color = Color.Gray,
                         modifier = Modifier.padding(16.dp)
                     )

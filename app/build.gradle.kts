@@ -19,6 +19,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Cập nhật khối packaging để loại bỏ cả META-INF/DEPENDENCIES
+    packaging {
+        resources {
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/DEPENDENCIES" // Thêm dòng này để loại bỏ file gây xung đột
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -52,6 +60,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("com.patrykandpatrick.vico:compose:1.15.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
