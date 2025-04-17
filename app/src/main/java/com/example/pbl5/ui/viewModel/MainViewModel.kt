@@ -12,11 +12,10 @@ import kotlinx.coroutines.launch
 
 class MainViewModel(
     context: Context,
-    serialId: String = "39f7b265cf615074" // Giá trị mặc định
+    serialId: String = "39f7b265cf615074"
 ) : ViewModel() {
     private val repository: RaspberryPiRepository = RaspberryPiRepository(context)
 
-    // Biến serialId thành MutableState để có thể thay đổi từ UI
     val serialId = mutableStateOf(serialId)
 
     val isLoading = mutableStateOf(false)
@@ -31,7 +30,6 @@ class MainViewModel(
     val userPhoneNumber = mutableStateOf("")
 
     init {
-        // Load user data
         viewModelScope.launch {
             when (val result = repository.getUserData()) {
                 is Result.Success -> {
@@ -47,7 +45,6 @@ class MainViewModel(
             }
         }
 
-        // Load Raspberry Pi data and check thresholds
         loadRaspberryPiData()
     }
 
@@ -56,16 +53,12 @@ class MainViewModel(
         errorMessage.value = null
 
         viewModelScope.launch {
-            val piData = repository.getRaspberryPiData(serialId.value) // Sử dụng serialId.value
+            val piData = repository.getRaspberryPiData(serialId.value)
             if (piData != null) {
                 raspberryPiData.value = piData
-                val deadFish = repository.getLatestDeadFishCount(serialId.value)
-                deadFishData.value = deadFish
-                println("DeadFishData updated: ${deadFish?.count}")
+                deadFishData.value = repository.getLatestDeadFishCount(serialId.value)
                 turbidityData.value = repository.getLatestTurbidity(serialId.value)
                 turbidityDistribution.value = repository.getTurbidityDistribution(serialId.value)
-                // Kiểm tra ngưỡng và gửi thông báo
-                checkAndNotify()
             } else {
                 errorMessage.value = "Không tìm thấy Raspberry Pi với Serial ID: ${serialId.value}"
             }
@@ -77,20 +70,7 @@ class MainViewModel(
         loadRaspberryPiData()
     }
 
-    // Hàm để xử lý khi người dùng nhấn nút kết nối
     fun connectToRaspberryPi() {
-        loadRaspberryPiData() // Gọi lại loadRaspberryPiData với serialId mới
-    }
-
-    private fun checkAndNotify() {
-        viewModelScope.launch {
-            try {
-                repository.checkAndNotify(serialId.value)
-                println("Kiểm tra ngưỡng thành công cho serialId: ${serialId.value}")
-            } catch (e: Exception) {
-                println("Lỗi khi kiểm tra ngưỡng: ${e.message}")
-                errorMessage.value = "Lỗi khi kiểm tra ngưỡng: ${e.message}"
-            }
-        }
+        loadRaspberryPiData()
     }
 }

@@ -61,6 +61,7 @@ dependencies {
     implementation("com.patrykandpatrick.vico:compose:1.15.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

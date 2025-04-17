@@ -1,6 +1,7 @@
 package com.example.pbl5.ui.activities
 
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,7 +17,6 @@ import com.google.firebase.messaging.FirebaseMessaging
 class MainActivity : ComponentActivity() {
     private val firestore = FirebaseFirestore.getInstance()
 
-    // Tạo ViewModel với context
     private val viewModel: MainViewModel by viewModels {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -35,17 +35,44 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        // Lấy và lưu FCM token
-        saveFcmToken()
+        updateFcmTokenForUser()
     }
 
-    private fun saveFcmToken() {
+    private fun updateFcmTokenForUser() {
         val userPhone = getUserPhoneNumber()
         if (userPhone.isEmpty()) {
             Log.e("FCM", "Không thể lấy số điện thoại của người dùng")
             return
         }
 
+        val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+
+        firestore.collection("DEVICES")
+            .document(deviceId)
+            .get()
+            .addOnSuccessListener { document ->
+                val fcmToken = document.getString("fcmToken")
+                if (fcmToken != null) {
+                    firestore.collection("USERS")
+                        .document(userPhone)
+                        .update("fcmToken", fcmToken)
+                        .addOnSuccessListener {
+                            Log.d("FCM", "Cập nhật FCM token thành công cho user: $userPhone")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FCM", "Lỗi khi cập nhật FCM token: ${e.message}")
+                        }
+                } else {
+                    saveFcmToken(userPhone)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("FCM", "Lỗi khi lấy FCM token từ DEVICES: ${e.message}")
+                saveFcmToken(userPhone)
+            }
+    }
+
+    private fun saveFcmToken(userPhone: String) {
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
                 Log.w("FCM", "Lỗi khi lấy FCM token: ${task.exception}")
