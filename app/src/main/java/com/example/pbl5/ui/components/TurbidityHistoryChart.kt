@@ -1,5 +1,7 @@
 package com.example.pbl5.ui.components
 
+import java.text.SimpleDateFormat
+import java.util.*
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -8,22 +10,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.toArgb
 import com.example.pbl5.data.TurbidityHistory
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.compose.chart.line.lineChart
-import com.patrykandpatrick.vico.core.axis.AxisPosition
-import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
-import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
-import com.patrykandpatrick.vico.core.entry.entryOf
-import java.text.SimpleDateFormat
-import java.util.*
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 
 @Composable
 fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
+    Log.d("TurbidityHistoryChart", "Số lượng dữ liệu history: ${history.size}")
+    history.forEachIndexed { index, entry ->
+        Log.d("TurbidityHistoryChart", "Entry $index: value=${entry.value}, timestamp=${entry.timestamp?.time}")
+    }
+
     if (history.isEmpty()) {
         Text(
             text = "Không có dữ liệu lịch sử độ đục nước",
@@ -33,9 +37,8 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
         return
     }
 
-    // State để theo dõi vị trí bắt đầu của dữ liệu hiển thị
     var startIndex by remember { mutableStateOf(maxOf(0, history.size - 3)) }
-    val itemsPerPage = 3 // Hiển thị 3 mục mỗi lần
+    val itemsPerPage = 3
 
     Card(
         modifier = Modifier
@@ -45,9 +48,7 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "Lịch sử độ đục nước",
                 fontSize = 16.sp,
@@ -70,57 +71,101 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
                 return@Column
             }
 
-            // Tạo dữ liệu cho biểu đồ
-            val entries = displayHistory.mapIndexed { index, entry ->
-                entryOf(index.toFloat(), entry.value)
-            }
-
-            val chartEntryModelProducer = ChartEntryModelProducer(entries)
-
-            // Vẽ biểu đồ
-            Chart(
-                chart = lineChart(listOf(
-                    com.patrykandpatrick.vico.core.chart.line.LineChart.LineSpec(
-                        lineColor = Color.Blue.toArgb() // Đổi màu thành xanh dương
-                    )
-                )),
-                chartModelProducer = chartEntryModelProducer,
+            AndroidView(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(250.dp),
-                startAxis = rememberStartAxis(
-                    valueFormatter = AxisValueFormatter { value, _ ->
-                        String.format("%.1f", value)
-                    },
-                    tickLength = 0.dp
-                ),
-                bottomAxis = rememberBottomAxis(
-                    valueFormatter = AxisValueFormatter { value, _ ->
-                        val index = value.toInt()
-                        if (index in displayHistory.indices) {
-                            val time = displayHistory[index].timestamp?.time ?: 0L
-                            Log.d("TurbidityHistoryChart", "Formatting index=$index, time=$time")
-                            if (time == 0L) {
-                                return@AxisValueFormatter "Invalid"
-                            }
-                            val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-                            val entryDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(time))
-                            Log.d("TurbidityHistoryChart", "CurrentDate=$currentDate, EntryDate=$entryDate")
-                            if (currentDate == entryDate) {
-                                SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
-                            } else {
-                                SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(time))
-                            }
-                        } else {
-                            ""
+                    .height(300.dp),
+                factory = { context ->
+                    LineChart(context).apply {
+                        description.isEnabled = false
+                        setTouchEnabled(true)
+                        isDragEnabled = true
+                        setScaleEnabled(false)
+                        setPinchZoom(false)
+
+                        xAxis.apply {
+                            position = XAxis.XAxisPosition.BOTTOM
+                            setDrawGridLines(false)
+                            textColor = android.graphics.Color.BLACK
+                            textSize = 10f
+                            granularity = 1f
+                            labelRotationAngle = 45f
+                            valueFormatter = IndexAxisValueFormatter(
+                                displayHistory.map { entry ->
+                                    val time = entry.timestamp?.time ?: 0L
+                                    if (time == 0L) "Invalid"
+                                    else try {
+                                        val date = Date(time)
+                                        val timePart = SimpleDateFormat("HH:mm", Locale("vi", "VN")).format(date)
+                                        val datePart = SimpleDateFormat("dd/MM", Locale("vi", "VN")).format(date)
+                                        "$timePart\n$datePart"
+                                    } catch (e: Exception) {
+                                        "Error"
+                                    }
+                                }
+                            )
                         }
-                    },
-                    labelRotationDegrees = 45f,
-                    tickLength = 0.dp
-                )
+
+                        axisLeft.apply {
+                            textColor = android.graphics.Color.BLACK
+                            textSize = 12f
+                            setDrawGridLines(true)
+                            axisMinimum = 0f
+                        }
+                        axisRight.isEnabled = false
+
+                        val entries = displayHistory.mapIndexed { index, entry ->
+                            Entry(index.toFloat(), if (entry.value >= 0) entry.value else 0f)
+                        }
+                        val dataSet = LineDataSet(entries, "Độ đục (NTU)").apply {
+                            color = Color.Blue.toArgb()
+                            lineWidth = 2f
+                            setDrawCircles(true)
+                            circleRadius = 4f
+                            circleColors = listOf(Color.Blue.toArgb())
+                            setDrawValues(false)
+                            mode = LineDataSet.Mode.CUBIC_BEZIER
+                        }
+                        data = LineData(dataSet)
+                        invalidate()
+                    }
+                },
+                update = { chart ->
+                    val entries = displayHistory.mapIndexed { index, entry ->
+                        Entry(index.toFloat(), if (entry.value >= 0) entry.value else 0f)
+                    }
+                    val dataSet = LineDataSet(entries, "Độ đục (NTU)").apply {
+                        color = Color.Blue.toArgb()
+                        lineWidth = 2f
+                        setDrawCircles(true)
+                        circleRadius = 4f
+                        circleColors = listOf(Color.Blue.toArgb())
+                        setDrawValues(false)
+                        mode = LineDataSet.Mode.CUBIC_BEZIER
+                    }
+                    chart.data = LineData(dataSet)
+                    chart.xAxis.apply {
+                        valueFormatter = IndexAxisValueFormatter(
+                            displayHistory.map { entry ->
+                                val time = entry.timestamp?.time ?: 0L
+                                if (time == 0L) "Invalid"
+                                else try {
+                                    val date = Date(time)
+                                    val timePart = SimpleDateFormat("HH:mm", Locale("vi", "VN")).format(date)
+                                    val datePart = SimpleDateFormat("dd/MM", Locale("vi", "VN")).format(date)
+                                    "$timePart\n$datePart"
+                                } catch (e: Exception) {
+                                    "Error"
+                                }
+                            }
+                        )
+                        textSize = 10f
+                        labelRotationAngle = 45f
+                    }
+                    chart.invalidate()
+                }
             )
 
-            // Nút điều hướng
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
