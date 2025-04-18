@@ -20,8 +20,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 data class RaspberryPiData(
     val totalFishCount: Int = 0,
+    val totalDeadFishCount: Int = 0,
     val status: String = "Hoạt động",
     val lastSeen: Date? = null
+
 )
 
 data class DeadFishData(
@@ -133,6 +135,7 @@ class RaspberryPiRepository(
             if (document.exists()) {
                 RaspberryPiData(
                     totalFishCount = document.getLong("totalFishCount")?.toInt() ?: 0,
+                    totalDeadFishCount = document.getLong("totalDeadFishCount")?.toInt() ?: 0,
                     status = document.getString("status") ?: "Hoạt động",
                     lastSeen = document.getTimestamp("lastSeen")?.toDate()
                 )
@@ -147,21 +150,19 @@ class RaspberryPiRepository(
     // Lấy số cá chết mới nhất
     suspend fun getLatestDeadFishCount(serialId: String): DeadFishData? {
         return try {
-            val snapshot = firestore.collection("DEAD_FISH_DETECTIONS")
-                .whereEqualTo("serial_id", serialId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(1)
+            val document = firestore.collection("RASPBERRY_PIS")
+                .document(serialId)
                 .get()
                 .await()
-            if (snapshot.documents.isNotEmpty()) {
-                val doc = snapshot.documents.first()
+            if (document.exists()) {
                 DeadFishData(
-                    count = doc.getLong("count")?.toInt() ?: 0
+                    count = document.getLong("totalDeadFishCount")?.toInt() ?: 0
                 )
             } else {
                 null
             }
         } catch (e: Exception) {
+            println("Error fetching LatestDeadFishCount: ${e.message}")
             null
         }
     }

@@ -1,5 +1,6 @@
 package com.example.pbl5.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -98,8 +99,13 @@ fun TurbidityHistoryChart(history: List<TurbidityHistory>) {
                         val index = value.toInt()
                         if (index in displayHistory.indices) {
                             val time = displayHistory[index].timestamp?.time ?: 0L
+                            Log.d("TurbidityHistoryChart", "Formatting index=$index, time=$time")
+                            if (time == 0L) {
+                                return@AxisValueFormatter "Invalid"
+                            }
                             val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
                             val entryDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(time))
+                            Log.d("TurbidityHistoryChart", "CurrentDate=$currentDate, EntryDate=$entryDate")
                             if (currentDate == entryDate) {
                                 SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(time))
                             } else {
