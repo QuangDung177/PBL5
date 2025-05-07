@@ -44,7 +44,8 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
         topBar = {
             AppTopBar(
                 title = userDisplayName,
-                onNotificationClick = { showNotificationDialog = true }
+                notifications = notifications,
+                onNotificationsUpdated = { viewModel.loadNotifications() }
             )
         },
         bottomBar = {

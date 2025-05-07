@@ -30,8 +30,9 @@ fun MonitorScreen(
     Scaffold(
         topBar = {
             AppTopBar(
-                title = "Độ đục nước",
-                onNotificationClick = { /* TODO: Mở màn hình thông báo */ }
+                title = "Phát hiện cá chết",
+                notifications = mainViewModel.notifications.value,
+                onNotificationsUpdated = { mainViewModel.loadNotifications() }
             )
         },
         bottomBar = {

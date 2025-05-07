@@ -60,7 +60,8 @@ fun FishScreen(
         topBar = {
             AppTopBar(
                 title = "Phát hiện cá chết",
-                onNotificationClick = { /* TODO: Mở màn hình thông báo */ }
+                notifications = mainViewModel.notifications.value,
+                onNotificationsUpdated = { mainViewModel.loadNotifications() }
             )
         },
         bottomBar = {

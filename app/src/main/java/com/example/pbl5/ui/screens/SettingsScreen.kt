@@ -38,8 +38,9 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             AppTopBar(
-                title = "Cài đặt",
-                onNotificationClick = { navController.navigate("Notifications") }
+                title = "Phát hiện cá chết",
+                notifications = mainViewModel.notifications.value,
+                onNotificationsUpdated = { mainViewModel.loadNotifications() }
             )
         },
         bottomBar = {
