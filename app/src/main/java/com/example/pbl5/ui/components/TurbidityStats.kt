@@ -1,11 +1,19 @@
 package com.example.pbl5.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -17,189 +25,160 @@ import java.util.Locale
 @Composable
 fun TurbidityStats(
     value: Float,
-    status: String, // Trạng thái độ đục nước: Tốt, Trung bình, Xấu
+    status: String,
     timestamp: Long?,
-    deviceStatus: String // Trạng thái thiết bị: Hoạt động, Lỗi
+    deviceStatus: String
 ) {
+    // Define colors based on status
+    val statusColor = when (status) {
+        "Tốt" -> Color(0xFF4CAF50) // Green
+        "Trung bình" -> Color(0xFFFFA000) // Amber
+        else -> Color(0xFFF44336) // Red
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White), // Đặt nền trắng
-        elevation = CardDefaults.cardElevation(0.dp)
+        shape = RoundedCornerShape(16.dp),
+        backgroundColor = Color.White,
+        elevation = 4.dp
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            // Cột 1: Cảm biến độ đục nước
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Card title with icon
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
             ) {
-                // Tiêu đề
-                Box(
-                    modifier = Modifier
-                        .height(40.dp) // Chiều cao cố định cho tiêu đề
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Cảm biến độ đục nước",
-                        fontSize = 14.sp,
-                        color = Color.Black,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2 // Giới hạn 2 dòng để tránh tràn
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                // Giá trị
-                Box(
-                    modifier = Modifier
-                        .height(40.dp) // Chiều cao cố định cho giá trị
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "${value} NTU",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when (status) {
-                            "Tốt" -> Color.Green
-                            "Trung bình" -> Color(0xFFFFA500)
-                            else -> Color.Red
-                        },
-                        textAlign = TextAlign.Center
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Filled.WaterDrop,
+                    contentDescription = "Water Turbidity",
+                    tint = Color(0xFF1E90FF),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Độ đục nước",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
             }
 
-            // Cột 2: Chỉ số
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Main stats in a row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Chỉ số",
-                        fontSize = 14.sp,
-                        color = Color.Black,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Box(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = status,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when (status) {
-                            "Tốt" -> Color.Green
-                            "Trung bình" -> Color(0xFFFFA500)
-                            else -> Color.Red
-                        },
-                        textAlign = TextAlign.Center
-                    )
-                }
+                // Turbidity value
+                StatColumn(
+                    icon = Icons.Outlined.WaterDrop,
+                    iconTint = Color(0xFF1E90FF),
+                    title = "Cảm biến độ đục",
+                    value = "${value} NTU",
+                    valueColor = Color.Black,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Status
+                StatColumn(
+                    icon = Icons.Outlined.Speed,
+                    iconTint = statusColor,
+                    title = "Chỉ số",
+                    value = status,
+                    valueColor = statusColor,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Timestamp
+                StatColumn(
+                    icon = Icons.Outlined.AccessTime,
+                    iconTint = Color.Gray,
+                    title = "Thời gian",
+                    value = timestamp?.let {
+                        SimpleDateFormat("HH:mm dd/MM", Locale.getDefault()).format(it)
+                    } ?: "N/A",
+                    valueColor = Color.Black,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-//            // Cột 3: Trạng thái thiết bị
-//            Column(
-//                modifier = Modifier
-//                    .weight(1f)
-//                    .padding(horizontal = 8.dp),
-//                horizontalAlignment = Alignment.CenterHorizontally
-//            ) {
-//                Box(
-//                    modifier = Modifier
-//                        .height(40.dp)
-//                        .fillMaxWidth(),
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    Text(
-//                        text = "Trạng thái thiết bị",
-//                        fontSize = 14.sp,
-//                        color = Color.Black,
-//                        textAlign = TextAlign.Center,
-//                        maxLines = 2
-//                    )
-//                }
-//                Spacer(modifier = Modifier.height(4.dp))
-//                Box(
-//                    modifier = Modifier
-//                        .height(40.dp)
-//                        .fillMaxWidth(),
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    Text(
-//                        text = if (deviceStatus == "Active") "Active" else "Error",
-//                        fontSize = 16.sp,
-//                        fontWeight = FontWeight.Bold,
-//                        color = if (deviceStatus == "Active") Color.Green else Color.Red,
-//                        textAlign = TextAlign.Center
-//                    )
-//                }
-//            }
-
-            // Cột 4: Thời gian
-            Column(
+            // Status indicator
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(statusColor.copy(alpha = 0.1f))
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Thời gian",
-                        fontSize = 14.sp,
-                        color = Color.Black,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Box(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = timestamp?.let {
-                            SimpleDateFormat("HH:mm dd/MM/yyyy", Locale.getDefault()).format(it)
-                        } ?: "N/A",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
-                }
+                Text(
+                    text = "Trạng thái nước: $status",
+                    color = statusColor,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun StatColumn(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    title: String,
+    value: String,
+    valueColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.padding(horizontal = 4.dp)
+    ) {
+        // Icon with circular background
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(iconTint.copy(alpha = 0.1f))
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = iconTint,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Title
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Value
+        Text(
+            text = value,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = valueColor,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

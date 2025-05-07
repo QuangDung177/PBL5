@@ -2,12 +2,15 @@ package com.example.pbl5.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
+import androidx.compose.material.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,10 +21,8 @@ import com.example.pbl5.ui.components.BottomNavigationBar
 import com.example.pbl5.ui.viewmodel.MainViewModel
 import com.example.pbl5.ui.viewmodel.SettingsViewModel
 import android.content.Intent
-import androidx.compose.material3.SnackbarHostState
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavHostController,
@@ -32,13 +33,14 @@ fun SettingsScreen(
     val turbidityThreshold by settingsViewModel.turbidityThreshold.collectAsState()
     val context = LocalContext.current
 
-    val snackbarHostState = remember { SnackbarHostState() }
+    val scaffoldState = rememberScaffoldState()
     val scope = rememberCoroutineScope()
 
     Scaffold(
+        scaffoldState = scaffoldState,
         topBar = {
             AppTopBar(
-                title = "Phát hiện cá chết",
+                title = mainViewModel.userDisplayName.value,
                 notifications = mainViewModel.notifications.value,
                 onNotificationsUpdated = { mainViewModel.loadNotifications() }
             )
@@ -55,104 +57,171 @@ fun SettingsScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        backgroundColor = Color(0xFFF5F5F5)
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
+            // Tiêu đề trang
+            Card(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(top = 16.dp)
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                backgroundColor = Color.White,
+                elevation = 4.dp
             ) {
-                Text(
-                    text = "Cài đặt thông báo",
-                    fontSize = 24.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                OutlinedTextField(
-                    value = deadFishThreshold,
-                    onValueChange = { newValue ->
-                        if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
-                            settingsViewModel.updateDeadFishThreshold(newValue)
-                        }
-                    },
-                    label = { Text("Ngưỡng cá chết để thông báo") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(bottom = 16.dp)
-                )
-
-                OutlinedTextField(
-                    value = turbidityThreshold,
-                    onValueChange = { newValue ->
-                        if (newValue.matches(Regex("^\\d*\\.?\\d{0,1}$")) || newValue.isEmpty()) {
-                            settingsViewModel.updateTurbidityThreshold(newValue)
-                        }
-                    },
-                    label = { Text("Ngưỡng độ đục nước để thông báo") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(bottom = 16.dp)
-                )
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.End
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Column {
+                        Text(
+                            text = "Cài đặt thông báo",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E90FF)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Thiết lập ngưỡng cảnh báo",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            // Card cài đặt ngưỡng
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                backgroundColor = Color.White,
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Thiết lập ngưỡng cảnh báo",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+
+                    // Ngưỡng cá chết
+                    OutlinedTextField(
+                        value = deadFishThreshold,
+                        onValueChange = { newValue ->
+                            if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
+                                settingsViewModel.updateDeadFishThreshold(newValue)
+                            }
+                        },
+                        label = { Text("Ngưỡng cá chết để thông báo") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = Color(0xFF1E90FF),
+                            unfocusedBorderColor = Color(0xFFDDDDDD),
+                            cursorColor = Color(0xFF1E90FF)
+                        ),
+                        singleLine = true
+                    )
+
+                    // Ngưỡng độ đục nước
+                    OutlinedTextField(
+                        value = turbidityThreshold,
+                        onValueChange = { newValue ->
+                            if (newValue.matches(Regex("^\\d*\\.?\\d{0,1}$")) || newValue.isEmpty()) {
+                                settingsViewModel.updateTurbidityThreshold(newValue)
+                            }
+                        },
+                        label = { Text("Ngưỡng độ đục nước để thông báo") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = Color(0xFF1E90FF),
+                            unfocusedBorderColor = Color(0xFFDDDDDD),
+                            cursorColor = Color(0xFF1E90FF)
+                        ),
+                        singleLine = true
+                    )
+
+                    // Nút cập nhật
                     Button(
                         onClick = {
                             scope.launch {
                                 val success = settingsViewModel.saveThresholdsToFirebase()
                                 if (success) {
-                                    snackbarHostState.showSnackbar(
+                                    scaffoldState.snackbarHostState.showSnackbar(
                                         message = "Cập nhật thành công",
                                         duration = SnackbarDuration.Short
                                     )
                                 } else {
-                                    snackbarHostState.showSnackbar(
+                                    scaffoldState.snackbarHostState.showSnackbar(
                                         message = "Cập nhật thất bại",
                                         duration = SnackbarDuration.Short
                                     )
                                 }
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E90FF))
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = Color(0xFF1E90FF),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
                     ) {
-                        Text(text = "Cập nhật", color = Color.White, fontSize = 16.sp)
+                        Text(
+                            text = "Cập nhật",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
                     }
                 }
             }
 
-            Row(
+            // Spacer để đẩy nút đăng xuất xuống dưới
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Nút đăng xuất
+            Button(
+                onClick = {
+                    val intent = Intent(context, LoginActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    context.startActivity(intent)
+                },
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor = Color.Red,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.End
+                    .height(48.dp)
+                    .padding(bottom = 16.dp)
             ) {
-                Button(
-                    onClick = {
-                        val intent = Intent(context, LoginActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        context.startActivity(intent)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text(text = "Đăng xuất", color = Color.White, fontSize = 16.sp)
-                }
+                Text(
+                    text = "Đăng xuất",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
         }
     }
