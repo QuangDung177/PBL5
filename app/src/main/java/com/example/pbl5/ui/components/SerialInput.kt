@@ -17,7 +17,10 @@ fun SerialInput(
     serialId: String,
     onSerialIdChange: (String) -> Unit,
     onConnectClick: () -> Unit,
+    onRefreshClick: () -> Unit,
     isLoading: Boolean,
+    isRefreshing: Boolean, // Thêm trạng thái cho Làm mới
+    isConnected: Boolean,
     errorMessage: String?
 ) {
     Card(
@@ -25,9 +28,8 @@ fun SerialInput(
             .fillMaxWidth()
             .padding(16.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White), // Đặt nền trắng
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(0.dp)
-
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -73,13 +75,21 @@ fun SerialInput(
                     }
                 }
                 OutlinedButton(
-                    onClick = onConnectClick,
+                    onClick = onRefreshClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = isConnected && !isRefreshing // Vô hiệu khi đang làm mới
                 ) {
-                    Text("Làm mới", color = Color(0xFF1E90FF), fontWeight = FontWeight.Bold)
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color(0xFF1E90FF)
+                        )
+                    } else {
+                        Text("Làm mới", color = Color(0xFF1E90FF), fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

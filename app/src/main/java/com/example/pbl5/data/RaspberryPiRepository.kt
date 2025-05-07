@@ -59,7 +59,12 @@ data class TurbidityHistory(
     val value: Float = 0f,
     val timestamp: Date? = null
 )
-
+data class NotificationData(
+    val id: String = "",
+    val message: String = "",
+    val timestamp: Date? = null,
+    val userPhone: String = ""
+)
 class RaspberryPiRepository(
     private val context: Context,
     val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -105,6 +110,7 @@ class RaspberryPiRepository(
             } else {
                 val rawPhoneNumber = currentUser.phoneNumber?.removePrefix("+84") ?: ""
                 val phoneNumber = if (rawPhoneNumber.isNotEmpty()) "0$rawPhoneNumber" else ""
+                println("Formatted phoneNumber: $phoneNumber")
                 if (phoneNumber.isEmpty()) {
                     Result.Error("Không thể lấy số điện thoại của người dùng")
                 } else {
@@ -404,6 +410,29 @@ class RaspberryPiRepository(
                 "userPhone" to ownerPhone
             )
             firestore.collection("NOTIFICATIONS").add(notificationData).await()
+        }
+    }
+    suspend fun getNotifications(userPhone: String): List<NotificationData> {
+        return try {
+            println("Fetching notifications for userPhone: $userPhone")
+            val snapshot = firestore.collection("NOTIFICATIONS")
+                .whereEqualTo("userPhone", userPhone)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val notifications = snapshot.documents.map { doc ->
+                NotificationData(
+                    id = doc.id,
+                    message = doc.getString("message") ?: "",
+                    timestamp = doc.getTimestamp("timestamp")?.toDate(),
+                    userPhone = doc.getString("userPhone") ?: ""
+                )
+            }
+            println("Fetched ${notifications.size} notifications")
+            notifications
+        } catch (e: Exception) {
+            println("Error fetching notifications: ${e.message}")
+            emptyList()
         }
     }
 }

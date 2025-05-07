@@ -17,14 +17,16 @@ class MainViewModel(
     private val repository: RaspberryPiRepository = RaspberryPiRepository(context)
 
     val serialId = mutableStateOf(serialId)
-
     val isLoading = mutableStateOf(false)
+    val isRefreshing = mutableStateOf(false)
     val errorMessage = mutableStateOf<String?>(null)
+    val isConnected = mutableStateOf(false)
 
     val raspberryPiData = mutableStateOf<RaspberryPiData?>(null)
     val deadFishData = mutableStateOf<DeadFishData?>(null)
     val turbidityData = mutableStateOf<TurbidityData?>(null)
     val turbidityDistribution = mutableStateOf(TurbidityDistribution())
+    val notifications = mutableStateOf<List<NotificationData>>(emptyList()) // Thêm danh sách thông báo
 
     val userDisplayName = mutableStateOf("User")
     val userPhoneNumber = mutableStateOf("")
@@ -37,6 +39,7 @@ class MainViewModel(
                     userPhoneNumber.value = userData.phoneNumber
                     userDisplayName.value = userData.displayName
                     println("User data loaded successfully - Phone: ${userPhoneNumber.value}, DisplayName: ${userDisplayName.value}")
+                    loadNotifications() // Tải thông báo khi init
                 }
                 is Result.Error -> {
                     println("Failed to load user data: ${result.message}")
@@ -59,18 +62,46 @@ class MainViewModel(
                 deadFishData.value = repository.getLatestDeadFishCount(serialId.value)
                 turbidityData.value = repository.getLatestTurbidity(serialId.value)
                 turbidityDistribution.value = repository.getTurbidityDistribution(serialId.value)
+                isConnected.value = true
             } else {
                 errorMessage.value = "Không tìm thấy Raspberry Pi với Serial ID: ${serialId.value}"
+                isConnected.value = false
             }
             isLoading.value = false
         }
     }
 
     fun refreshData() {
-        loadRaspberryPiData()
+        if (isConnected.value && serialId.value.isNotBlank()) {
+            isRefreshing.value = true
+            viewModelScope.launch {
+                val piData = repository.getRaspberryPiData(serialId.value)
+                if (piData != null) {
+                    raspberryPiData.value = piData
+                    deadFishData.value = repository.getLatestDeadFishCount(serialId.value)
+                    turbidityData.value = repository.getLatestTurbidity(serialId.value)
+                    turbidityDistribution.value = repository.getTurbidityDistribution(serialId.value)
+                } else {
+                    println("Failed to refresh data for Serial ID: ${serialId.value}")
+                }
+                isRefreshing.value = false
+            }
+        }
     }
 
     fun connectToRaspberryPi() {
         loadRaspberryPiData()
+    }
+
+    // Thêm hàm tải thông báo
+    fun loadNotifications() {
+        viewModelScope.launch {
+            val phone = userPhoneNumber.value
+            println("Loading notifications for userPhone: $phone")
+            if (phone.isNotBlank()) {
+                val fetchedNotifications = repository.getNotifications(phone)
+                notifications.value = fetchedNotifications
+            }
+        }
     }
 }
