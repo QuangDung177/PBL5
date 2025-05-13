@@ -1,7 +1,11 @@
 package com.example.pbl5.ui.screens
 
 import android.app.Activity
-import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -9,10 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.pbl5.R
 import com.example.pbl5.utils.FirebaseManager
 import com.example.pbl5.utils.OtpHandler
@@ -29,6 +31,7 @@ import com.example.pbl5.utils.Utils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthProvider
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -44,6 +47,9 @@ fun LoginScreen(
     val phoneNumber = remember { mutableStateOf("") }
     val otp = remember { mutableStateOf("") }
     val firebaseManager = remember { FirebaseManager() }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
     // Khởi tạo OtpHandler và FirebaseManager
     val otpHandler = remember {
         OtpHandler(auth, activity, coroutineScope).apply {
@@ -51,15 +57,77 @@ fun LoginScreen(
                 firebaseManager.verifyOtp(
                     credential = credential,
                     onSuccess = {
-                        Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
                         onLoginSuccess()
                     },
-                    onFailure = { error -> errorMessage.value = error }
+                    onFailure = { error ->
+                        errorMessage = error
+                        showErrorDialog = true
+                    }
                 )
             }
         }
     }
 
+    // Custom Error Dialog
+    @Composable
+    fun CustomErrorDialog(
+        message: String,
+        onDismiss: () -> Unit
+    ) {
+        Dialog(onDismissRequest = { onDismiss() }) {
+            AnimatedVisibility(
+                visible = true,
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "Lỗi",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Red
+                        )
+                        Text(
+                            text = message,
+                            fontSize = 16.sp,
+                            color = Color.Black,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        Button(
+                            onClick = { onDismiss() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Red,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Đóng",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -107,14 +175,6 @@ fun LoginScreen(
                         .padding(bottom = 20.dp),
                     shape = RoundedCornerShape(8.dp)
                 )
-                otpHandler.errorMessage.value?.let { message ->
-                    Text(
-                        text = message,
-                        color = Color.Red,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(bottom = 10.dp)
-                    )
-                }
                 Row(
                     modifier = Modifier
                         .width(200.dp)
@@ -136,14 +196,22 @@ fun LoginScreen(
                                         firebaseManager.checkPhoneNumberForLogin(
                                             phoneNumber = phoneNumber.value,
                                             onSuccess = { otpHandler.sendOtp(phoneNumber.value) },
-                                            onNotFound = { otpHandler.errorMessage.value = "Số điện thoại chưa được đăng ký!" },
-                                            onFailure = { error -> otpHandler.errorMessage.value = error }
+                                            onNotFound = {
+                                                errorMessage = "Số điện thoại chưa được đăng ký!"
+                                                showErrorDialog = true
+                                            },
+                                            onFailure = { error ->
+                                                errorMessage = error
+                                                showErrorDialog = true
+                                            }
                                         )
                                     } else {
-                                        otpHandler.errorMessage.value = "Số điện thoại phải có 10 chữ số!"
+                                        errorMessage = "Số điện thoại phải có 10 chữ số!"
+                                        showErrorDialog = true
                                     }
                                 } else {
-                                    otpHandler.errorMessage.value = "Vui lòng nhập số điện thoại"
+                                    errorMessage = "Vui lòng nhập số điện thoại"
+                                    showErrorDialog = true
                                 }
                             },
                             modifier = Modifier
@@ -176,14 +244,6 @@ fun LoginScreen(
                         .padding(bottom = 20.dp),
                     shape = RoundedCornerShape(8.dp)
                 )
-                otpHandler.errorMessage.value?.let { message ->
-                    Text(
-                        text = message,
-                        color = Color.Red,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(bottom = 10.dp)
-                    )
-                }
                 Button(
                     onClick = {
                         if (otp.value.isNotEmpty() && otpHandler.verificationId.value != null) {
@@ -191,13 +251,16 @@ fun LoginScreen(
                             firebaseManager.verifyOtp(
                                 credential = credential,
                                 onSuccess = {
-                                    Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
                                     onLoginSuccess()
                                 },
-                                onFailure = { error -> otpHandler.errorMessage.value = error }
+                                onFailure = { error ->
+                                    errorMessage = error
+                                    showErrorDialog = true
+                                }
                             )
                         } else {
-                            otpHandler.errorMessage.value = "Vui lòng nhập OTP"
+                            errorMessage = "Vui lòng nhập OTP"
+                            showErrorDialog = true
                         }
                     },
                     modifier = Modifier
@@ -259,6 +322,14 @@ fun LoginScreen(
             ) {
                 Text("Quay lại", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
+        }
+
+        // Show error dialog if needed
+        if (showErrorDialog) {
+            CustomErrorDialog(
+                message = errorMessage,
+                onDismiss = { showErrorDialog = false }
+            )
         }
     }
 }

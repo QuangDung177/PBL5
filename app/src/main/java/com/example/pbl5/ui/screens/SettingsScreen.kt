@@ -1,19 +1,28 @@
 package com.example.pbl5.ui.screens
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
 import com.example.pbl5.ui.activities.LoginActivity
 import com.example.pbl5.ui.components.AppTopBar
@@ -35,6 +44,110 @@ fun SettingsScreen(
 
     val scaffoldState = rememberScaffoldState()
     val scope = rememberCoroutineScope()
+
+    // State for dialog
+    var showDialog by remember { mutableStateOf(false) }
+    var dialogMessage by remember { mutableStateOf("") }
+    var isSuccess by remember { mutableStateOf(false) }
+
+    // Cải thiện AlertDialog với animation và thiết kế thân thiện hơn
+    @Composable
+    fun EnhancedAlertDialog(
+        message: String,
+        isSuccess: Boolean,
+        onDismiss: () -> Unit
+    ) {
+        Dialog(onDismissRequest = { onDismiss() }) {
+            // Animation khi hiển thị dialog
+            AnimatedVisibility(
+                visible = true,
+                enter = scaleIn(initialScale = 0.8f) + fadeIn(),
+                exit = scaleOut(targetScale = 0.8f) + fadeOut()
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundColor = Color.White,
+                    elevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Animation cho icon
+                        val infiniteTransition = rememberInfiniteTransition()
+                        val scale by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(800),
+                                repeatMode = RepeatMode.Reverse
+                            )
+                        )
+
+                        // Icon với hiệu ứng nhấp nháy
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isSuccess) Color(0xFF4CAF50).copy(alpha = 0.1f)
+                                    else Color.Red.copy(alpha = 0.1f)
+                                )
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isSuccess) Icons.Filled.Check else Icons.Filled.Close,
+                                contentDescription = if (isSuccess) "Success" else "Error",
+                                tint = if (isSuccess) Color(0xFF4CAF50) else Color.Red,
+                                modifier = Modifier.scale(scale)
+                            )
+                        }
+
+                        // Tiêu đề
+                        Text(
+                            text = if (isSuccess) "Thành công" else "Lỗi",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSuccess) Color(0xFF4CAF50) else Color.Red
+                        )
+
+                        // Nội dung thông báo
+                        Text(
+                            text = message,
+                            fontSize = 16.sp,
+                            color = Color.Black,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        // Nút đóng với hiệu ứng ripple
+                        Button(
+                            onClick = { onDismiss() },
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor = if (isSuccess) Color(0xFF4CAF50) else Color.Red,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Đóng",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         scaffoldState = scaffoldState,
@@ -166,17 +279,9 @@ fun SettingsScreen(
                         onClick = {
                             scope.launch {
                                 val success = settingsViewModel.saveThresholdsToFirebase()
-                                if (success) {
-                                    scaffoldState.snackbarHostState.showSnackbar(
-                                        message = "Cập nhật thành công",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                } else {
-                                    scaffoldState.snackbarHostState.showSnackbar(
-                                        message = "Cập nhật thất bại",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                }
+                                dialogMessage = if (success) "Cập nhật ngưỡng thành công" else "Cập nhật ngưỡng cảnh báo thất bại"
+                                isSuccess = success
+                                showDialog = true
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -223,6 +328,15 @@ fun SettingsScreen(
                     fontSize = 16.sp
                 )
             }
+        }
+
+        // Hiển thị dialog cải tiến khi cần
+        if (showDialog) {
+            EnhancedAlertDialog(
+                message = dialogMessage,
+                isSuccess = isSuccess,
+                onDismiss = { showDialog = false }
+            )
         }
     }
 }
