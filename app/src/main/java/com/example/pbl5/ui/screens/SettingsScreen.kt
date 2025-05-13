@@ -318,7 +318,8 @@ fun SettingsScreen(
                 ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .align(Alignment.End) // Căn sang góc phải
+                    .wrapContentWidth() // Độ rộng vừa với nội dung
                     .height(48.dp)
                     .padding(bottom = 16.dp)
             ) {
