@@ -1,15 +1,17 @@
 package com.example.pbl5.ui.screens
 
-import coil.compose.AsyncImage
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,7 +20,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.example.pbl5.ui.components.AppTopBar
 import com.example.pbl5.ui.components.BottomNavigationBar
 import com.example.pbl5.ui.components.FishStats
@@ -42,6 +46,7 @@ fun FishScreen(
     val isLoading by fishViewModel.isLoading
 
     var showModal by remember { mutableStateOf(false) }
+    var showFullScreenImage by remember { mutableStateOf(false) }
     var selectedImageUrl by remember { mutableStateOf<String?>(null) }
     var selectedTimestamp by remember { mutableStateOf<Long?>(null) }
     var selectedCount by remember { mutableStateOf<Int?>(null) }
@@ -49,13 +54,11 @@ fun FishScreen(
     val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // Tải lại lịch sử cá chết và reset bộ lọc khi serialId thay đổi
     LaunchedEffect(mainViewModel.serialId.value) {
         fishViewModel.loadDeadFishHistory()
         fishViewModel.resetFilter()
     }
 
-    // Ghi log để kiểm tra dữ liệu
     LaunchedEffect(deadFishHistory, filteredDeadFishHistory) {
         Log.d("FishScreen", "deadFishHistory size: ${deadFishHistory.size}")
         Log.d("FishScreen", "filteredDeadFishHistory size: ${filteredDeadFishHistory.size}")
@@ -121,7 +124,6 @@ fun FishScreen(
                 }
             }
 
-            // Tiêu đề và bộ lọc
             item {
                 Card(
                     modifier = Modifier
@@ -134,7 +136,6 @@ fun FishScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        // Tiêu đề với icon
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 16.dp)
@@ -154,7 +155,6 @@ fun FishScreen(
                             )
                         }
 
-                        // Bộ lọc ngày
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -210,7 +210,6 @@ fun FishScreen(
                 }
             }
 
-            // Hiển thị trạng thái đang tải
             if (isLoading) {
                 item {
                     Box(
@@ -223,9 +222,7 @@ fun FishScreen(
                         CircularProgressIndicator(color = Color(0xFF1E90FF))
                     }
                 }
-            }
-            // Hiển thị lỗi
-            else if (errorMessage != null) {
+            } else if (errorMessage != null) {
                 item {
                     Card(
                         modifier = Modifier
@@ -249,9 +246,7 @@ fun FishScreen(
                         }
                     }
                 }
-            }
-            // Hiển thị khi không có Serial ID
-            else if (mainViewModel.serialId.value.isBlank()) {
+            } else if (mainViewModel.serialId.value.isBlank()) {
                 item {
                     Card(
                         modifier = Modifier
@@ -275,9 +270,7 @@ fun FishScreen(
                         }
                     }
                 }
-            }
-            // Hiển thị danh sách lịch sử cá chết
-            else if (datePickerState.selectedDateMillis == null && deadFishHistory.isNotEmpty()) {
+            } else if (datePickerState.selectedDateMillis == null && deadFishHistory.isNotEmpty()) {
                 items(deadFishHistory) { history ->
                     DeadFishHistoryItem(
                         timestamp = history.timestamp?.time,
@@ -290,9 +283,7 @@ fun FishScreen(
                         }
                     )
                 }
-            }
-            // Hiển thị danh sách đã lọc
-            else if (filteredDeadFishHistory.isNotEmpty()) {
+            } else if (filteredDeadFishHistory.isNotEmpty()) {
                 items(filteredDeadFishHistory) { history ->
                     DeadFishHistoryItem(
                         timestamp = history.timestamp?.time,
@@ -305,9 +296,7 @@ fun FishScreen(
                         }
                     )
                 }
-            }
-            // Hiển thị khi không có dữ liệu
-            else {
+            } else {
                 item {
                     Card(
                         modifier = Modifier
@@ -334,7 +323,6 @@ fun FishScreen(
             }
         }
 
-        // Dialog hiển thị chi tiết cá chết
         if (showModal && selectedImageUrl != null) {
             AlertDialog(
                 onDismissRequest = { showModal = false },
@@ -360,7 +348,8 @@ fun FishScreen(
                             contentDescription = "Ảnh cá chết",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(300.dp)
+                                .height(200.dp)
+                                .clickable { showFullScreenImage = true }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -405,6 +394,76 @@ fun FishScreen(
             )
         }
 
+        if (showFullScreenImage && selectedImageUrl != null) {
+            AlertDialog(
+                onDismissRequest = { showFullScreenImage = false },
+                properties = DialogProperties(
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true,
+                    usePlatformDefaultWidth = false
+                ),
+                modifier = Modifier.fillMaxSize(),
+                confirmButton = {},
+                dismissButton = {},
+                text = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White)
+                            .clickable { showFullScreenImage = false }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = selectedImageUrl,
+                                contentDescription = "Ảnh phóng to",
+                                modifier = Modifier
+                                    .fillMaxSize(),
+                                alignment = Alignment.Center
+                            )
+
+                            IconButton(
+                                onClick = { showFullScreenImage = false },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                                    .size(36.dp)
+                                    .background(
+                                        color = Color.Black.copy(alpha = 0.5f),
+                                        shape = CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Đóng",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Text(
+                                text = "Nhấn để đóng",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 16.dp)
+                                    .background(
+                                        color = Color.Black.copy(alpha = 0.5f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            )
+        }
+
         if (showDatePicker) {
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },
@@ -431,8 +490,7 @@ fun FishScreen(
                     ) {
                         Text("Hủy")
                     }
-                },
-
+                }
             ) {
                 DatePicker(
                     state = datePickerState,
