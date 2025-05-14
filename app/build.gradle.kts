@@ -65,6 +65,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation ("androidx.compose.animation:animation:1.6.8")
+    implementation("org.videolan.android:libvlc-all:3.5.0-eap6")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

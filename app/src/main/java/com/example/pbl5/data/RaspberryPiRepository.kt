@@ -435,6 +435,18 @@ class RaspberryPiRepository(
             emptyList()
         }
     }
+    // Thêm hàm để cập nhật trường startCamera trên Firebase
+    suspend fun setCameraState(serialId: String, state: Boolean) {
+        try {
+            firestore.collection("RASPBERRY_PIS")
+                .document(serialId)
+                .update("startCamera", state)
+                .await()
+            println("Updated startCamera to $state for serialId: $serialId")
+        } catch (e: Exception) {
+            println("Error updating startCamera: ${e.message}")
+        }
+    }
 }
 
 sealed class Result<out T> {

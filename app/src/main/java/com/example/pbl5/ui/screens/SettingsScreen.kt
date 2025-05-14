@@ -316,11 +316,12 @@ fun SettingsScreen(
                     backgroundColor = Color.Red,
                     contentColor = Color.White
                 ),
+
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .align(Alignment.End) // Căn sang góc phải
                     .wrapContentWidth() // Độ rộng vừa với nội dung
-                    .height(48.dp)
+                    .height(60.dp)
                     .padding(bottom = 16.dp)
             ) {
                 Text(
