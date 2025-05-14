@@ -1,20 +1,26 @@
 package com.example.pbl5.ui.screens
 
 import android.content.Context
-import android.net.Uri // Import thêm để sử dụng Uri.parse
+import android.net.Uri
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -134,9 +140,9 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                     // Turbidity chart
                     TurbidityChart(distribution = turbidityDistribution)
 
-                    // Add Stream Button if connected
+                    // Enhanced Stream Button
                     if (isConnected) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = {
                                 if (serialId.isNotEmpty()) {
@@ -155,10 +161,35 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            shape = RoundedCornerShape(12.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF3D5AFE),
+                                contentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 4.dp,
+                                pressedElevation = 8.dp
+                            )
                         ) {
-                            Text("Xem Stream")
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Videocam,
+                                    contentDescription = "Stream Icon",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Xem Stream",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
                         }
                     }
 
@@ -222,10 +253,10 @@ fun StreamDialog(
     // Khởi tạo LibVLC
     val libVLC = remember {
         LibVLC(context, arrayListOf(
-            "--rtsp-tcp", // Sử dụng TCP cho RTSP (ổn định hơn UDP)
-            "--no-video-title-show", // Ẩn tiêu đề video
-            "--verbose=2", // Cấp độ log chi tiết
-            "--network-caching=1000" // Tăng caching network (1 giây)
+            "--rtsp-tcp",
+            "--no-video-title-show",
+            "--verbose=2",
+            "--network-caching=1000"
         ))
     }
 
@@ -249,11 +280,9 @@ fun StreamDialog(
 
     // Gắn MediaPlayer với VLCVideoLayout và xử lý sự kiện
     LaunchedEffect(Unit) {
-        // Gắn MediaPlayer với VLCVideoLayout
         mediaPlayer.attachViews(vlcVideoLayout, null, false, false)
         android.util.Log.d("VLCDebug", "Attached MediaPlayer to VLCVideoLayout")
 
-        // Cấu hình media và phát stream
         val uri = Uri.parse(rtspUrl)
         val media = Media(libVLC, uri)
         mediaPlayer.media = media
@@ -261,7 +290,6 @@ fun StreamDialog(
         media.release()
         android.util.Log.d("VLCDebug", "Playing stream from: $rtspUrl")
 
-        // Đặt listener cho MediaPlayer
         mediaPlayer.setEventListener { event ->
             when (event.type) {
                 MediaPlayer.Event.Playing -> {
@@ -296,7 +324,6 @@ fun StreamDialog(
         }
     }
 
-    // Dọn dẹp tài nguyên khi Dialog bị hủy
     DisposableEffect(Unit) {
         onDispose {
             mediaPlayer.detachViews()
@@ -311,58 +338,142 @@ fun StreamDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(350.dp)
-                .clip(RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(containerColor = Color.Black)
+                .height(500.dp)
+                .clip(RoundedCornerShape(24.dp)),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF121212)
+            ),
+            elevation = CardDefaults.cardElevation(8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+            Box(
+                modifier = Modifier.fillMaxSize()
             ) {
-                AndroidView(
-                    factory = { vlcVideoLayout },
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = streamStatus,
-                    color = if (streamStatus.contains("Lỗi")) Color.Red else Color.White,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(8.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (showRetryButton) {
-                        Button(
-                            onClick = {
-                                streamStatus = "Đang thử lại thủ công..."
-                                showRetryButton = false
-                                retryCount = 0
-                                retryStream(rtspUrl)
-                            },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Thử lại")
-                        }
+                    Text(
+                        text = "Live Stream",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(
+                                width = 2.dp,
+                                color = Color(0xFF3D5AFE),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                    ) {
+                        AndroidView(
+                            factory = { vlcVideoLayout },
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
 
-                    Button(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(
+                                color = when {
+                                    streamStatus.contains("Lỗi") -> Color(0x33FF0000)
+                                    streamStatus.contains("sẵn sàng") -> Color(0x3300FF00)
+                                    else -> Color(0x33FFFFFF)
+                                },
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Đóng")
+                        Icon(
+                            imageVector = when {
+                                streamStatus.contains("Lỗi") -> Icons.Filled.Error
+                                streamStatus.contains("sẵn sàng") -> Icons.Filled.CheckCircle
+                                else -> Icons.Filled.Info
+                            },
+                            contentDescription = "Status Icon",
+                            tint = when {
+                                streamStatus.contains("Lỗi") -> Color.Red
+                                streamStatus.contains("sẵn sàng") -> Color.Green
+                                else -> Color.White
+                            },
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = streamStatus,
+                            color = when {
+                                streamStatus.contains("Lỗi") -> Color.Red
+                                streamStatus.contains("sẵn sàng") -> Color.Green
+                                else -> Color.White
+                            },
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                    ) {
+                        if (showRetryButton) {
+                            Button(
+                                onClick = {
+                                    streamStatus = "Đang thử lại thủ công..."
+                                    showRetryButton = false
+                                    retryCount = 0
+                                    retryStream(rtspUrl)
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF4CAF50)
+                                ),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Refresh,
+                                        contentDescription = "Retry",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Thử lại")
+                                }
+                            }
+                        }
+
+                        Button(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (showRetryButton) Color(0xFFE53935) else Color(0xFF3D5AFE)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Close",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Đóng")
+                            }
+                        }
                     }
                 }
             }
