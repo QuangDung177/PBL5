@@ -81,6 +81,7 @@ class MainViewModel(
                     deadFishData.value = repository.getLatestDeadFishCount(serialId.value)
                     turbidityData.value = repository.getLatestTurbidity(serialId.value)
                     turbidityDistribution.value = repository.getTurbidityDistribution(serialId.value)
+                    loadNotifications()
                 } else {
                     println("Failed to refresh data for Serial ID: ${serialId.value}")
                 }
