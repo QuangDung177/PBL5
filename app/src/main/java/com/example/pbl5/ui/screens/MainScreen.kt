@@ -216,7 +216,7 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
             // Show Stream Dialog if triggered
             if (showStreamDialog) {
                 StreamDialog(
-                    rtspUrl = "rtsp://192.168.1.11:8554/video0_unicast",
+                    rtspUrl = "rtsp://192.168.58.91:8554/video0_unicast",
                     context = context,
                     onDismiss = {
                         showStreamDialog = false
