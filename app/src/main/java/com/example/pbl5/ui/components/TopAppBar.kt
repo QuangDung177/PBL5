@@ -20,22 +20,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pbl5.data.NotificationData
+import com.example.pbl5.ui.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(
     title: String,
     notifications: List<NotificationData>,
+    viewModel: MainViewModel,
     onNotificationsUpdated: () -> Unit
 ) {
     var showNotificationDialog by remember { mutableStateOf(false) }
+    val unreadCount = notifications.count { !it.isRead }
 
     TopAppBar(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar circle with first letter of username
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -62,9 +64,7 @@ fun AppTopBar(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Username with welcome message
                 Column {
-
                     Text(
                         text = title,
                         fontSize = 16.sp,
@@ -75,21 +75,14 @@ fun AppTopBar(
             }
         },
         actions = {
-            Box {
-                IconButton(
-                    onClick = {
-                        showNotificationDialog = true
-                        onNotificationsUpdated()
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = Color(0xFF1E90FF),
-                        modifier = Modifier.size(24.dp)
-                    )
+            // Tách thành composable riêng để tránh RowScope
+            NotificationIconWithBadge(
+                unreadCount = unreadCount,
+                onClick = {
+                    showNotificationDialog = true
+                    onNotificationsUpdated()
                 }
-            }
+            )
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.White,
@@ -100,7 +93,52 @@ fun AppTopBar(
     if (showNotificationDialog) {
         NotificationDialog(
             notifications = notifications,
-            onDismiss = { showNotificationDialog = false }
+            onDismiss = { showNotificationDialog = false },
+            onMarkAsRead = { notificationId ->
+                viewModel.markNotificationAsRead(notificationId)
+            }
         )
+    }
+}
+
+@Composable
+fun NotificationIconWithBadge(
+    unreadCount: Int,
+    onClick: () -> Unit
+) {
+    Box {
+        IconButton(onClick = onClick) {
+            Box {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Notifications",
+                    tint = Color(0xFF1E90FF),
+                    modifier = Modifier.size(24.dp)
+                )
+                AnimatedVisibility(
+                    visible = unreadCount > 0,
+                    enter = fadeIn(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(300)),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 6.dp, y = (-6).dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(Color.Red),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = unreadCount.toString(),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
     }
 }

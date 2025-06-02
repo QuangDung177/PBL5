@@ -55,7 +55,6 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
     var showStreamDialog by remember { mutableStateOf(false) }
     var streamError by remember { mutableStateOf<String?>(null) }
 
-    // Create a gradient background
     val backgroundGradient = Brush.verticalGradient(
         colors = listOf(
             Color(0xFFF8FBFF),
@@ -70,6 +69,7 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
             AppTopBar(
                 title = userDisplayName,
                 notifications = notifications,
+                viewModel = viewModel,
                 onNotificationsUpdated = { viewModel.loadNotifications() }
             )
         },
@@ -100,7 +100,6 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                     .padding(padding)
                     .verticalScroll(scrollState)
             ) {
-                // Serial input section
                 SerialInput(
                     serialId = serialId,
                     onSerialIdChange = { viewModel.serialId.value = it },
@@ -112,17 +111,14 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                     errorMessage = errorMessage
                 )
 
-                // Show data only if connected
                 raspberryPiData?.let { piData ->
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Fish statistics card
                     FishStats(
                         totalFishCount = piData.totalFishCount,
                         deadFishCount = deadFishData?.count ?: 0
                     )
 
-                    // Turbidity statistics
                     turbidityData?.let { turbidity ->
                         TurbidityStats(
                             value = turbidity.value,
@@ -137,10 +133,8 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                         )
                     }
 
-                    // Turbidity chart
                     TurbidityChart(distribution = turbidityDistribution)
 
-                    // Enhanced Stream Button
                     if (isConnected) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
@@ -193,17 +187,14 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                         }
                     }
 
-                    // Add some space at the bottom
                     Spacer(modifier = Modifier.height(16.dp))
                 } ?: run {
-                    // Show empty state when not connected
                     EmptyStateCard(
                         message = "Chưa kết nối với Raspberry Pi",
                         modifier = Modifier.padding(16.dp)
                     )
                 }
 
-                // Display stream error if any
                 streamError?.let {
                     Text(
                         text = it,
@@ -213,7 +204,6 @@ fun MainScreen(viewModel: MainViewModel, navController: NavHostController) {
                 }
             }
 
-            // Show Stream Dialog if triggered
             if (showStreamDialog) {
                 StreamDialog(
                     rtspUrl = "rtsp://192.168.58.91:8554/video0_unicast",
@@ -250,7 +240,6 @@ fun StreamDialog(
     var retryCount by remember { mutableStateOf(0) }
     val maxRetries = 3
 
-    // Khởi tạo LibVLC
     val libVLC = remember {
         LibVLC(context, arrayListOf(
             "--rtsp-tcp",
@@ -260,13 +249,9 @@ fun StreamDialog(
         ))
     }
 
-    // Khởi tạo MediaPlayer
     val mediaPlayer = remember { MediaPlayer(libVLC) }
-
-    // Khởi tạo VLCVideoLayout
     val vlcVideoLayout = remember { VLCVideoLayout(context) }
 
-    // Hàm retry stream
     fun retryStream(url: String) {
         if (retryCount < maxRetries) {
             val uri = Uri.parse(url)
@@ -278,7 +263,6 @@ fun StreamDialog(
         }
     }
 
-    // Gắn MediaPlayer với VLCVideoLayout và xử lý sự kiện
     LaunchedEffect(Unit) {
         mediaPlayer.attachViews(vlcVideoLayout, null, false, false)
         android.util.Log.d("VLCDebug", "Attached MediaPlayer to VLCVideoLayout")

@@ -26,7 +26,7 @@ class MainViewModel(
     val deadFishData = mutableStateOf<DeadFishData?>(null)
     val turbidityData = mutableStateOf<TurbidityData?>(null)
     val turbidityDistribution = mutableStateOf(TurbidityDistribution())
-    val notifications = mutableStateOf<List<NotificationData>>(emptyList()) // Thêm danh sách thông báo
+    val notifications = mutableStateOf<List<NotificationData>>(emptyList())
 
     val userDisplayName = mutableStateOf("User")
     val userPhoneNumber = mutableStateOf("")
@@ -39,7 +39,7 @@ class MainViewModel(
                     userPhoneNumber.value = userData.phoneNumber
                     userDisplayName.value = userData.displayName
                     println("User data loaded successfully - Phone: ${userPhoneNumber.value}, DisplayName: ${userDisplayName.value}")
-                    loadNotifications() // Tải thông báo khi init
+                    loadNotifications()
                 }
                 is Result.Error -> {
                     println("Failed to load user data: ${result.message}")
@@ -93,7 +93,6 @@ class MainViewModel(
         loadRaspberryPiData()
     }
 
-    // Thêm hàm tải thông báo
     fun loadNotifications() {
         viewModelScope.launch {
             val phone = userPhoneNumber.value
@@ -102,6 +101,13 @@ class MainViewModel(
                 val fetchedNotifications = repository.getNotifications(phone)
                 notifications.value = fetchedNotifications
             }
+        }
+    }
+
+    fun markNotificationAsRead(notificationId: String) {
+        viewModelScope.launch {
+            repository.markNotificationAsRead(notificationId)
+            loadNotifications()
         }
     }
 }

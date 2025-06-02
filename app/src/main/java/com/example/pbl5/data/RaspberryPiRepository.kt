@@ -18,12 +18,12 @@ import java.util.Date
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
 data class RaspberryPiData(
     val totalFishCount: Int = 0,
     val totalDeadFishCount: Int = 0,
     val status: String = "Hoạt động",
     val lastSeen: Date? = null
-
 )
 
 data class DeadFishData(
@@ -59,12 +59,15 @@ data class TurbidityHistory(
     val value: Float = 0f,
     val timestamp: Date? = null
 )
+
 data class NotificationData(
     val id: String = "",
     val message: String = "",
     val timestamp: Date? = null,
-    val userPhone: String = ""
+    val userPhone: String = "",
+    val isRead: Boolean = false
 )
+
 class RaspberryPiRepository(
     private val context: Context,
     val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -76,18 +79,15 @@ class RaspberryPiRepository(
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Project ID của bạn (lấy từ file service-account-file.json)
     private val PROJECT_ID = "pbl5-9328d" // Thay bằng projectId thực tế
 
-    // Lấy Access Token từ Service Account
     private suspend fun getAccessToken(): String? {
         return try {
-            // Chuyển tác vụ mạng sang thread I/O
             withContext(Dispatchers.IO) {
                 val inputStream: InputStream = context.resources.openRawResource(R.raw.service_account_file)
                 val googleCredentials = GoogleCredentials.fromStream(inputStream)
                     .createScoped(listOf("https://www.googleapis.com/auth/firebase.messaging"))
-                googleCredentials.refreshIfExpired() // Tác vụ mạng
+                googleCredentials.refreshIfExpired()
                 val token = googleCredentials.accessToken?.tokenValue
                 if (token == null) {
                     println("Access Token is null after refresh")
@@ -101,7 +101,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy thông tin người dùng từ Firebase Auth và Firestore
     suspend fun getUserData(): Result<UserData> {
         return try {
             val currentUser = FirebaseAuth.getInstance().currentUser
@@ -131,7 +130,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy thông tin Raspberry Pi
     suspend fun getRaspberryPiData(serialId: String): RaspberryPiData? {
         return try {
             val document = firestore.collection("RASPBERRY_PIS")
@@ -153,7 +151,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy số cá chết mới nhất
     suspend fun getLatestDeadFishCount(serialId: String): DeadFishData? {
         return try {
             val document = firestore.collection("RASPBERRY_PIS")
@@ -173,7 +170,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy lịch sử cá chết
     suspend fun getDeadFishHistory(serialId: String): List<DeadFishHistory> {
         return try {
             println("Fetching dead fish history for serialId: $serialId")
@@ -198,7 +194,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy dữ liệu độ đục nước mới nhất
     suspend fun getLatestTurbidity(serialId: String): TurbidityData? {
         return try {
             val snapshot = firestore.collection("TURBIDITY")
@@ -228,7 +223,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy phân bố độ đục nước (cho biểu đồ)
     suspend fun getTurbidityDistribution(serialId: String): TurbidityDistribution {
         return try {
             val snapshot = firestore.collection("TURBIDITY")
@@ -256,7 +250,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy lịch sử độ đục nước
     suspend fun getTurbidityHistory(serialId: String): List<TurbidityHistory> {
         return try {
             println("Fetching turbidity history for serialId: $serialId")
@@ -280,7 +273,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy ngưỡng từ Firestore
     suspend fun getThresholds(serialId: String): Pair<Int, Float>? {
         return try {
             val document = firestore.collection("RASPBERRY_PIS")
@@ -288,20 +280,17 @@ class RaspberryPiRepository(
                 .get()
                 .await()
             if (document.exists()) {
-                // Lấy map "settings"
                 val settings = document.get("settings") as? Map<String, Any> ?: emptyMap()
-                // Lấy deadFishThreshold từ settings
                 val deadFishThreshold = when (val value = settings["deadFishThreshold"]) {
                     is Long -> value.toInt()
                     is Int -> value
-                    else -> 0 // Giá trị mặc định nếu không tìm thấy hoặc không hợp lệ
+                    else -> 0
                 }
-                // Lấy turbidityThreshold từ settings
                 val turbidityThreshold = when (val value = settings["turbidityThreshold"]) {
                     is Double -> value.toFloat()
                     is Long -> value.toFloat()
                     is Int -> value.toFloat()
-                    else -> 0f // Giá trị mặc định nếu không tìm thấy hoặc không hợp lệ
+                    else -> 0f
                 }
                 println("Fetched thresholds: deadFishThreshold=$deadFishThreshold, turbidityThreshold=$turbidityThreshold")
                 Pair(deadFishThreshold, turbidityThreshold)
@@ -315,7 +304,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Lấy FCM token của người dùng dựa trên ownerPhone
     suspend fun getFcmToken(phoneNumber: String): String? {
         return try {
             val document = firestore.collection("USERS")
@@ -333,7 +321,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Gửi thông báo qua FCM API V1
     suspend fun sendNotification(toToken: String, title: String, body: String): Boolean {
         return try {
             val accessToken = getAccessToken() ?: run {
@@ -357,7 +344,6 @@ class RaspberryPiRepository(
                 .addHeader("Authorization", "Bearer $accessToken")
                 .addHeader("Content-Type", "application/json")
                 .build()
-            // Chuyển tác vụ mạng sang thread I/O
             val response = withContext(Dispatchers.IO) {
                 client.newCall(request).execute()
             }
@@ -377,7 +363,6 @@ class RaspberryPiRepository(
         }
     }
 
-    // Kiểm tra ngưỡng và gửi thông báo nếu vượt ngưỡng
     suspend fun checkAndNotify(serialId: String) {
         val thresholds = getThresholds(serialId) ?: return
         val (deadFishThreshold, turbidityThreshold) = thresholds
@@ -407,11 +392,13 @@ class RaspberryPiRepository(
             val notificationData = hashMapOf(
                 "message" to combinedMessage,
                 "timestamp" to Date(),
-                "userPhone" to ownerPhone
+                "userPhone" to ownerPhone,
+                "isRead" to false
             )
             firestore.collection("NOTIFICATIONS").add(notificationData).await()
         }
     }
+
     suspend fun getNotifications(userPhone: String): List<NotificationData> {
         return try {
             println("Fetching notifications for userPhone: $userPhone")
@@ -425,7 +412,8 @@ class RaspberryPiRepository(
                     id = doc.id,
                     message = doc.getString("message") ?: "",
                     timestamp = doc.getTimestamp("timestamp")?.toDate(),
-                    userPhone = doc.getString("userPhone") ?: ""
+                    userPhone = doc.getString("userPhone") ?: "",
+                    isRead = doc.getBoolean("isRead") ?: false
                 )
             }
             println("Fetched ${notifications.size} notifications")
@@ -435,7 +423,19 @@ class RaspberryPiRepository(
             emptyList()
         }
     }
-    // Thêm hàm để cập nhật trường startCamera trên Firebase
+
+    suspend fun markNotificationAsRead(notificationId: String) {
+        try {
+            firestore.collection("NOTIFICATIONS")
+                .document(notificationId)
+                .update("isRead", true)
+                .await()
+            println("Marked notification $notificationId as read")
+        } catch (e: Exception) {
+            println("Error marking notification as read: ${e.message}")
+        }
+    }
+
     suspend fun setCameraState(serialId: String, state: Boolean) {
         try {
             firestore.collection("RASPBERRY_PIS")

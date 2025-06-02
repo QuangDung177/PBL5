@@ -32,6 +32,7 @@ fun MonitorScreen(
             AppTopBar(
                 title = "Độ đục nước",
                 notifications = mainViewModel.notifications.value,
+                viewModel = mainViewModel,
                 onNotificationsUpdated = { mainViewModel.loadNotifications() }
             )
         },

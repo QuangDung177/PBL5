@@ -25,9 +25,11 @@ import java.util.*
 @Composable
 fun NotificationDialog(
     notifications: List<NotificationData>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onMarkAsRead: (String) -> Unit
 ) {
-    // Sử dụng Dialog thay vì AlertDialog để có thể tùy chỉnh nhiều hơn
+    val unreadCount = notifications.count { !it.isRead }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
@@ -40,7 +42,6 @@ fun NotificationDialog(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Tiêu đề
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -53,16 +54,14 @@ fun NotificationDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Thông báo",
+                        text = "Thông báo${if (unreadCount > 0) " ($unreadCount chưa đọc)" else ""}",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1E90FF)
                     )
                 }
 
-                // Nội dung
                 if (notifications.isEmpty()) {
-                    // Hiển thị khi không có thông báo
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
@@ -92,7 +91,6 @@ fun NotificationDialog(
                         )
                     }
                 } else {
-                    // Danh sách thông báo
                     LazyColumn(
                         modifier = Modifier
                             .heightIn(max = 400.dp)
@@ -100,7 +98,9 @@ fun NotificationDialog(
                         itemsIndexed(notifications) { index, notification ->
                             NotificationItem(
                                 message = notification.message,
-                                timestamp = notification.timestamp?.time
+                                timestamp = notification.timestamp?.time,
+                                isRead = notification.isRead,
+                                onClick = { onMarkAsRead(notification.id) }
                             )
                             if (index < notifications.size - 1) {
                                 Divider(
@@ -113,7 +113,6 @@ fun NotificationDialog(
                     }
                 }
 
-                // Nút đóng
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -144,7 +143,9 @@ fun NotificationDialog(
 @Composable
 fun NotificationItem(
     message: String,
-    timestamp: Long?
+    timestamp: Long?,
+    isRead: Boolean,
+    onClick: () -> Unit
 ) {
     val timeDiff = timestamp?.let { ts ->
         val currentTime = System.currentTimeMillis()
@@ -166,9 +167,12 @@ fun NotificationItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable(onClick = { isPressed = !isPressed }),
+            .clickable(onClick = {
+                if (!isRead) onClick()
+                isPressed = !isPressed
+            }),
         shape = RoundedCornerShape(12.dp),
-        backgroundColor = if (isPressed) Color(0xFFF5F5F5) else Color.White,
+        backgroundColor = if (isPressed) Color(0xFFF5F5F5) else if (!isRead) Color(0xFFFFF3F3) else Color.White,
         elevation = 2.dp
     ) {
         Row(
@@ -177,18 +181,17 @@ fun NotificationItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon với background tròn
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(percent = 50))
-                    .background(Color(0xFF1E90FF).copy(alpha = 0.1f)),
+                    .background(if (!isRead) Color(0xFFFFE0E0) else Color(0xFF1E90FF).copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Notification Icon",
-                    tint = Color(0xFF1E90FF),
+                    tint = if (!isRead) Color.Red else Color(0xFF1E90FF),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -201,7 +204,7 @@ fun NotificationItem(
                 Text(
                     text = message,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = if (!isRead) FontWeight.Bold else FontWeight.Medium,
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))

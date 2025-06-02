@@ -155,6 +155,7 @@ fun SettingsScreen(
             AppTopBar(
                 title = mainViewModel.userDisplayName.value,
                 notifications = mainViewModel.notifications.value,
+                viewModel = mainViewModel,
                 onNotificationsUpdated = { mainViewModel.loadNotifications() }
             )
         },
